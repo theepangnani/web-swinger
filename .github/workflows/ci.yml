@@ -1,0 +1,35 @@
+# Runs the same three commands you would run locally, on every push.
+# The point is that a change pushed from one laptop is verified before the
+# other one pulls it.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # `npm ci` installs exactly what package-lock.json pins, and fails if the
+      # lockfile and package.json have drifted apart — which is the failure a
+      # second machine would otherwise hit first.
+      - run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Verification suites
+        run: npm test
+
+      - name: Production build
+        run: npm run build
