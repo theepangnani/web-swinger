@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web-Swinger — Desktop &amp; Controller Edition</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            width: 100%;
+            height: 100%;
+            user-select: none;
+            background-color: #030307;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+        }
+        #canvas-container {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+        #canvas-container canvas { display: block; }
+
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            pointer-events: none;
+            box-sizing: border-box;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .hud-panel {
+            background: rgba(10, 10, 15, 0.85);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 16px;
+            color: white;
+        }
+        #top-hud {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            width: 100%;
+        }
+        .stat-group { margin-bottom: 8px; }
+        .stat-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #888; }
+        .stat-value { font-size: 18px; font-weight: bold; }
+        .bar-container { width: 160px; height: 8px; background: #222; border-radius: 4px; overflow: hidden; margin-top: 4px; }
+        #hp-bar { width: 100%; height: 100%; background: #e63946; transition: width 0.15s linear; }
+        #special-bar { width: 40%; height: 100%; background: #ffb703; transition: width 0.15s linear; }
+        .boss-hp { width: 100%; height: 100%; background: #9440bc; transition: width 0.15s linear; }
+        #ally-hp-bar { width: 100%; height: 100%; transition: width 0.15s linear; }
+        #boss-panel { display: none; width: 200px; }
+        .boss-row + .boss-row { margin-top: 8px; border-top: 1px solid rgba(255,255,255,0.12); padding-top: 6px; }
+        .boss-row .boss-dist { font-size: 12px; color: #bbb; }
+        .boss-row .boss-dist b { color: #fff; }
+
+        #ally-panel { display: none; width: 200px; margin-bottom: 8px; border-left: 3px solid #52fa7c; }
+        #ally-hp-bar { background: #52fa7c; }
+        #ally-status { font-size: 11px; color: #9ad; margin-top: 3px; }
+        #clock-txt { color: #8fb6e0; font-variant-numeric: tabular-nums; }
+
+        #quest-tracker {
+            position: absolute;
+            top: 200px;
+            left: 20px;
+            max-width: 250px;
+            font-size: 13px;
+            border-left: 3px solid #ffb703;
+            padding-left: 10px;
+        }
+
+        #desktop-controls-legend {
+            align-self: flex-start;
+            font-size: 12px;
+            color: #ccc;
+            max-width: 340px;
+            line-height: 1.6;
+        }
+        .key-cap {
+            background: #222;
+            border: 1px solid #555;
+            border-radius: 4px;
+            padding: 1px 5px;
+            font-family: monospace;
+            color: #fff;
+            font-weight: bold;
+        }
+
+        /* Radial vignette that intensifies with speed. The directional streaks
+           themselves are drawn in WebGL by fx/SpeedLines.ts. */
+        #speed-lines {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none; opacity: 0;
+            background: radial-gradient(circle, transparent 30%, rgba(255,255,255,0.12) 100%);
+        }
+        #dmg-flash {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%; z-index: 3; pointer-events: none; opacity: 0;
+            background: radial-gradient(circle, transparent 35%, rgba(220,30,40,0.75) 100%);
+            transition: opacity 0.18s ease-out;
+        }
+        #combo-txt {
+            font-size: 28px; color: #ffb703; font-weight: 900; font-style: italic;
+            text-shadow: 2px 2px 0 #000; opacity: 0; transition: opacity 0.15s;
+            align-self: center; margin-top: 6px;
+        }
+        #gamepad-status { font-size: 11px; color: #52fa7c; margin-top: 5px; font-weight: bold; display: none; }
+        #voice-status { font-size: 11px; color: #777; margin-top: 4px; }
+        #focus-bar { width: 0%; height: 100%; background: #4ea8ff; transition: width 0.12s linear; }
+        #xp-bar { width: 0%; height: 100%; background: #52fa7c; transition: width 0.25s; }
+        #gadget-row {
+            display: flex; justify-content: space-between; align-items: center;
+            font-size: 12px; margin-top: 8px; padding-top: 8px;
+            border-top: 1px solid rgba(255,255,255,0.12); color: #ddd;
+        }
+        #gadget-ammo { font-weight: bold; color: #ffb703; }
+        #perf-row {
+            display: flex; justify-content: space-between; align-items: baseline;
+            font-size: 11px; margin-top: 6px; color: #8fd0ff; letter-spacing: 1px;
+        }
+        #fps-txt { color: #666; font-variant-numeric: tabular-nums; }
+        #arena-banner {
+            margin-top: 8px; padding: 5px 8px; border-radius: 6px;
+            background: rgba(230, 57, 70, 0.18); border: 1px solid rgba(230, 57, 70, 0.5);
+            font-size: 11px; font-weight: bold; letter-spacing: 1px; color: #ff8b8b;
+            text-transform: uppercase; text-align: center;
+        }
+
+        /* Web-attach reticle: marks the point a web would grab. Hidden while
+           a line is attached, back the instant it is released. */
+        #web-reticle {
+            position: absolute; top: 0; left: 0;
+            width: 46px; height: 46px;
+            z-index: 6; pointer-events: none; opacity: 0;
+            transition: opacity 0.1s linear;
+            border: 2px solid rgba(255,255,255,0.9);
+            border-radius: 50%;
+            box-shadow: 0 0 8px rgba(0,0,0,0.7), inset 0 0 8px rgba(255,255,255,0.25);
+        }
+        #web-reticle::before {
+            content: ''; position: absolute; inset: 30%;
+            border-radius: 50%; background: rgba(255,255,255,0.85);
+        }
+
+        /* Spider-sense: a ring that tightens as an attack lands, plus a
+           pointer that rotates to the bearing of the threat. */
+        #spider-sense {
+            position: absolute; top: 50%; left: 50%;
+            width: 200px; height: 200px; margin: -100px 0 0 -100px;
+            z-index: 5; pointer-events: none; opacity: 0;
+            border: 3px solid #fff; border-radius: 50%;
+        }
+        #sense-pointer {
+            position: absolute; top: 50%; left: 50%;
+            width: 260px; height: 260px; margin: -130px 0 0 -130px;
+            z-index: 6; pointer-events: none; opacity: 0;
+            transition: opacity 0.08s linear;
+        }
+        /* The arrow sits at the top of the circle; rotating the parent sweeps
+           it around the crosshair to point at the danger. */
+        #sense-arrow {
+            position: absolute; top: -6px; left: 50%; margin-left: -13px;
+            width: 0; height: 0;
+            border-left: 13px solid transparent;
+            border-right: 13px solid transparent;
+            border-bottom: 20px solid #ffe066;
+            filter: drop-shadow(0 0 5px rgba(0,0,0,0.85));
+        }
+
+        /* Off-screen objective markers. */
+        #markers { position: absolute; inset: 0; z-index: 7; pointer-events: none; }
+        .marker {
+            position: absolute;
+            transform: translate(-50%, -50%);
+            font-size: 11px;
+            font-weight: bold;
+            letter-spacing: 1px;
+            color: #fff;
+            text-shadow: 0 0 4px #000, 0 0 8px #000;
+            white-space: nowrap;
+        }
+        .marker .pip {
+            display: block; width: 12px; height: 12px; margin: 0 auto 3px;
+            border: 2px solid #fff; transform: rotate(45deg);
+            background: rgba(255,255,255,0.25);
+        }
+        .marker.crime .pip { border-color: #ffb703; background: rgba(255,183,3,0.35); }
+        .marker.villain .pip { border-color: #9440bc; background: rgba(148,64,188,0.35); }
+
+        /* Settings overlay. */
+        /* Above #overlay (z 20), or the pause prompt would cover the menu. */
+        #settings {
+            position: absolute; inset: 0; z-index: 26; display: none;
+            background: rgba(4, 4, 9, 0.95); padding: 32px 40px; box-sizing: border-box;
+            overflow-y: auto; color: #fff; pointer-events: auto;
+        }
+        #settings.open { display: block; }
+        #settings-head {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 18px; border-bottom: 1px solid rgba(255,255,255,0.15); padding-bottom: 12px;
+        }
+        #settings-head h2 { margin: 0; font-size: 22px; letter-spacing: 3px; }
+        .settings-btn {
+            background: #1a1a22; color: #ccc; border: 1px solid #444; border-radius: 20px;
+            padding: 8px 20px; font-size: 12px; font-weight: bold; letter-spacing: 1px;
+            cursor: pointer; margin-left: 8px; font-family: inherit;
+        }
+        .settings-btn:hover { border-color: #b11313; color: #fff; }
+        .settings-btn.primary { background: linear-gradient(135deg, #b11313, #7a0010); color: #fff; border: none; }
+        #settings-body { max-width: 720px; }
+        .settings-section { margin-bottom: 26px; }
+        .settings-section h3 {
+            font-size: 11px; letter-spacing: 2px; color: #ffb703; margin: 0 0 10px;
+            text-transform: uppercase;
+        }
+        .settings-row {
+            display: flex; align-items: center; gap: 14px;
+            padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+        .settings-label { flex: 1 1 auto; font-size: 13px; color: #ddd; }
+        .settings-note { font-size: 11px; color: #8fb6e0; margin: -2px 0 6px 0; }
+        .settings-value { font-size: 12px; color: #ffb703; min-width: 52px; text-align: right; }
+        .settings-row input[type=range] { flex: 0 0 200px; accent-color: #b11313; }
+        .settings-toggle, .settings-bind {
+            background: #16161d; color: #ccc; border: 1px solid #444; border-radius: 6px;
+            padding: 5px 14px; font-size: 12px; font-weight: bold; cursor: pointer;
+            min-width: 92px; font-family: inherit;
+        }
+        .settings-toggle.on { border-color: #52fa7c; color: #52fa7c; }
+        .settings-bind:hover { border-color: #b11313; color: #fff; }
+        .settings-bind.capturing { border-color: #ffb703; color: #ffb703; }
+
+        /* Skill tree overlay. */
+        #skills {
+            position: absolute; inset: 0; z-index: 24; display: none;
+            background: rgba(4, 4, 9, 0.93); padding: 40px; box-sizing: border-box;
+            overflow-y: auto; color: #fff; pointer-events: auto;
+        }
+        #skills.open { display: block; }
+        #skills h2 { margin: 0 0 4px; font-size: 22px; letter-spacing: 2px; }
+        #skills .hint { color: #888; font-size: 12px; margin-bottom: 18px; }
+        #skill-branches { display: flex; gap: 20px; flex-wrap: wrap; }
+        .branch { flex: 1 1 260px; min-width: 240px; }
+        .branch h3 {
+            font-size: 12px; letter-spacing: 2px; color: #ffb703;
+            border-bottom: 1px solid rgba(255,255,255,0.15); padding-bottom: 6px;
+        }
+        .skill {
+            border: 1px solid rgba(255,255,255,0.12); border-radius: 8px;
+            padding: 9px 12px; margin-bottom: 8px; cursor: pointer;
+            background: rgba(255,255,255,0.03); transition: border-color 0.15s, background 0.15s;
+        }
+        .skill:hover { border-color: #b11313; background: rgba(177,19,19,0.12); }
+        .skill.owned { border-color: #52fa7c; background: rgba(82,250,124,0.10); cursor: default; }
+        .skill.locked { opacity: 0.4; cursor: not-allowed; }
+        .skill .name { font-weight: bold; font-size: 13px; }
+        .skill .desc { font-size: 11px; color: #bbb; margin-top: 3px; line-height: 1.4; }
+        .skill .cost { float: right; font-size: 11px; color: #ffb703; }
+
+        #suit-list { display: flex; flex-wrap: wrap; gap: 10px; }
+        .suit {
+            border: 1px solid rgba(255,255,255,0.14); border-radius: 8px;
+            padding: 10px 14px; min-width: 210px; cursor: pointer;
+            background: rgba(255,255,255,0.03); transition: border-color 0.15s;
+        }
+        .suit:hover { border-color: #b11313; }
+        .suit.equipped { border-color: #52fa7c; background: rgba(82,250,124,0.10); }
+        .suit.locked { opacity: 0.38; cursor: not-allowed; }
+        .suit .swatch {
+            display: inline-block; width: 14px; height: 14px; border-radius: 3px;
+            margin-right: 7px; vertical-align: -2px; border: 1px solid rgba(255,255,255,0.3);
+        }
+        .suit .name { font-weight: bold; font-size: 13px; }
+        .suit .desc { font-size: 11px; color: #bbb; margin-top: 4px; line-height: 1.4; }
+
+        /* Bark subtitles — also the fallback when speech synthesis is absent. */
+        #subtitle {
+            position: absolute;
+            bottom: 14%;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 8;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.18s;
+            text-align: center;
+            max-width: 70vw;
+            background: rgba(8, 8, 12, 0.72);
+            border-radius: 10px;
+            padding: 8px 18px;
+            backdrop-filter: blur(6px);
+        }
+        #subtitle-speaker {
+            font-size: 10px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: #ff5a5a;
+            font-weight: bold;
+        }
+        #subtitle-text { font-size: 17px; color: #f2f2f7; margin-top: 2px; }
+
+        #crosshair {
+            position: absolute;
+            top: 50%; left: 50%;
+            width: 18px; height: 18px;
+            margin: -9px 0 0 -9px;
+            z-index: 6;
+            pointer-events: none;
+            opacity: 0.65;
+        }
+        #crosshair::before, #crosshair::after {
+            content: ''; position: absolute; background: #fff;
+        }
+        #crosshair::before { left: 8px; top: 0; width: 2px; height: 18px; }
+        #crosshair::after { top: 8px; left: 0; height: 2px; width: 18px; }
+        #crosshair.locked { opacity: 1; }
+        #crosshair.target-locked::before,
+        #crosshair.target-locked::after { background: #ff3b3b; }
+
+        /* Boot / pointer-lock / fatal-error overlay */
+        #overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 20;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            text-align: center;
+            background: radial-gradient(circle, rgba(26, 5, 8, 0.94) 0%, rgba(5, 5, 8, 0.97) 100%);
+            color: #fff;
+            gap: 10px;
+            cursor: pointer;
+        }
+        #overlay.hidden { display: none; }
+        #overlay h1 {
+            margin: 0;
+            font-size: 40px;
+            letter-spacing: 3px;
+            font-weight: 900;
+            text-transform: uppercase;
+            background: linear-gradient(45deg, #ff2a2a, #ffffff, #0077ff);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            color: transparent;
+        }
+        #overlay h2 {
+            margin: 0 0 6px;
+            font-size: 13px;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: #a0a0a5;
+            font-weight: 600;
+        }
+        #overlay p { margin: 0; max-width: 520px; color: #bbb; font-size: 14px; line-height: 1.6; }
+        #overlay .cta {
+            margin-top: 16px; padding: 12px 30px; border: none; border-radius: 25px;
+            font-weight: bold; letter-spacing: 1px; color: #fff; text-transform: uppercase;
+            background: linear-gradient(135deg, #b11313 0%, #7a0010 100%);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+        }
+        #mode-select { display: flex; gap: 14px; margin-top: 16px; }
+        #mode-select .cta { margin-top: 0; cursor: pointer; font-family: inherit; font-size: 14px; }
+        #mode-select .cta.ghost {
+            background: transparent; border: 1px solid #555; color: #ddd;
+        }
+        #mode-select .cta.ghost:hover { border-color: #0077ff; color: #fff; }
+        #overlay .badges { display: flex; gap: 14px; margin-top: 4px; }
+        #overlay .badge {
+            padding: 7px 16px; border-radius: 20px; font-size: 11px; font-weight: bold;
+            text-transform: uppercase; letter-spacing: 1px;
+        }
+        #overlay .badge.peter { background: #b11313; box-shadow: 0 0 10px rgba(177,19,19,0.5); }
+        #overlay .badge.miles { background: #111; border: 1px solid #0077ff; box-shadow: 0 0 10px rgba(0,119,255,0.5); }
+        #overlay pre {
+            max-width: 80vw; overflow: auto; text-align: left; color: #ff8b8b;
+            font-size: 12px; background: #14141c; padding: 12px; border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="canvas-container"></div>
+    <div id="speed-lines"></div>
+    <div id="dmg-flash"></div>
+    <div id="crosshair"></div>
+
+    <div id="ui-layer">
+        <div id="top-hud">
+            <!-- Hero Panel -->
+            <div class="hud-panel" style="min-width: 180px;">
+                <div id="hero-name" class="stat-value" style="color:#ef4444; margin-bottom: 6px;">PETER PARKER</div>
+                <div class="stat-group">
+                    <div class="stat-label">Health</div>
+                    <div class="bar-container"><div id="hp-bar"></div></div>
+                </div>
+                <div class="stat-group">
+                    <div id="ability-label" class="stat-label">Symbiote Surge</div>
+                    <div class="bar-container"><div id="special-bar"></div></div>
+                </div>
+                <div class="stat-group">
+                    <div class="stat-label">Focus &mdash; H heal &middot; R finisher</div>
+                    <div class="bar-container"><div id="focus-bar"></div></div>
+                </div>
+                <div class="stat-group">
+                    <div class="stat-label">Level <span id="level-txt">1</span> &middot; <span id="skillpoints-txt">2</span> pts (K)</div>
+                    <div class="bar-container"><div id="xp-bar"></div></div>
+                </div>
+                <div id="gadget-row">
+                    <span><span class="key-cap">G</span> <span id="gadget-name">Impact Web</span></span>
+                    <span id="gadget-ammo">8</span>
+                </div>
+                <div style="font-size:10px; color:#777; margin-top:3px;">
+                    <span class="key-cap">Shift</span>+<span class="key-cap">G</span> next gadget
+                </div>
+                <div style="display:flex; justify-content: space-between; font-size:13px; margin-top:6px; gap: 14px;">
+                    <div>Spd: <span id="speed-txt" style="font-weight:bold;">0 km/h</span></div>
+                    <div>State: <span id="state-txt" style="font-weight:bold; color:#3b82f6;">AIRBORNE</span></div>
+                </div>
+                <div style="font-size:12px; color:#888; margin-top:4px;">
+                    Web: <span id="web-txt">--</span> &middot; Tension: <span id="tension-txt">0 N</span>
+                </div>
+                <div id="gamepad-status">&#127918; CONTROLLER CONNECTED</div>
+                <div id="voice-status">Barks: ON &middot; M to mute</div>
+                <div id="arena-banner" style="display:none;"></div>
+                <div id="perf-row">
+                    <span id="district-txt">MIDTOWN</span>
+                    <span id="clock-txt">21:40</span>
+                    <span id="fps-txt">60 fps</span>
+                </div>
+            </div>
+
+            <div id="combo-txt">0x COMBO</div>
+
+            <!-- Partner readout: only visible in chapters with an ally. -->
+            <div class="hud-panel" id="ally-panel">
+                <div class="stat-group">
+                    <div class="stat-label" id="ally-name">PARTNER</div>
+                    <div class="bar-container"><div id="ally-hp-bar"></div></div>
+                </div>
+                <div id="ally-status">Fighting alongside you</div>
+            </div>
+
+            <!-- Boss Panel. Rows are created on demand so a team-up shows both. -->
+            <div class="hud-panel" id="boss-panel"></div>
+        </div>
+
+        <!-- Dynamic Side Quest Subsystem Display -->
+        <div id="quest-tracker" class="hud-panel">
+            <div class="stat-label" style="color:#ffb703;">FNSM App Request</div>
+            <div id="quest-title" style="font-weight:bold; margin:2px 0;">Assisting Patrols</div>
+            <div id="quest-desc" style="font-size:11px; color:#ccc;">Clear out local street crimes.</div>
+        </div>
+
+        <!-- Short by default; the full map lives in Settings. -->
+        <div id="desktop-controls-legend" class="hud-panel">
+            <div class="stat-label" style="color: #fff; margin-bottom: 4px;">Basics</div>
+            <div>Move <span class="key-cap">WASD</span> / <span class="key-cap">Arrows</span> &middot; Look <span class="key-cap">Mouse</span></div>
+            <div>Swing: hold <span class="key-cap">Space</span> &middot; reel with <span class="key-cap">W</span><span class="key-cap">S</span></div>
+            <div>Punch <span class="key-cap">L-Click</span> &middot; Dodge <span class="key-cap">R-Click</span></div>
+            <div>Sprint / Glide <span class="key-cap">Shift</span></div>
+            <div>Finisher <span class="key-cap">F</span> &middot; Heal <span class="key-cap">H</span> &middot; Surge <span class="key-cap">Q</span></div>
+            <div style="margin-top:6px; color:#888;">
+                <span class="key-cap">O</span> settings &middot; <span class="key-cap">K</span> skills &middot; <span class="key-cap">L</span> full controls
+            </div>
+            <div>Walls grab automatically &mdash; <span class="key-cap">Ctrl</span> to let go</div>
+            <div id="legend-extra" style="display:none; margin-top:6px; border-top:1px solid rgba(255,255,255,0.12); padding-top:6px;">
+                <div>Zip to point <span class="key-cap">M-Click</span></div>
+                <div>Run at a wall with speed to run <em>up</em> it</div>
+                <div>Gadget <span class="key-cap">G</span> &middot; cycle <span class="key-cap">Shift+G</span></div>
+                <div>Ability <span class="key-cap">Q</span> &middot; Swap hero <span class="key-cap">Tab</span></div>
+                <div>Charge jump: hold <span class="key-cap">Space</span> on the ground, release to launch</div>
+                <div>Skills &amp; suits <span class="key-cap">K</span> &middot; Settings <span class="key-cap">O</span></div>
+                <div style="margin-top:4px; color:#888;">Pad: L-stick move &middot; R2 swing &middot; X attack &middot; O dodge</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="web-reticle"></div>
+    <div id="spider-sense"></div>
+    <div id="sense-pointer"><div id="sense-arrow"></div></div>
+    <div id="markers"></div>
+
+    <div id="subtitle">
+        <div id="subtitle-speaker">PETER</div>
+        <div id="subtitle-text"></div>
+    </div>
+
+    <div id="settings">
+        <div id="settings-head">
+            <h2>SETTINGS</h2>
+            <div>
+                <button id="settings-reset" class="settings-btn">RESET</button>
+                <button id="settings-close" class="settings-btn primary">CLOSE</button>
+            </div>
+        </div>
+        <div id="settings-body"></div>
+    </div>
+
+    <div id="skills">
+        <h2>SKILLS</h2>
+        <div class="hint">
+            <span id="skill-points-avail">0</span> point(s) available &mdash;
+            click a skill to unlock. Press <span class="key-cap">K</span> to close.
+        </div>
+        <div id="skill-branches"></div>
+        <h2 style="margin-top:28px;">SUITS</h2>
+        <div class="hint">Unlocked by level. Click to equip.</div>
+        <div id="suit-list"></div>
+    </div>
+
+    <div id="overlay">
+        <h1>Web-Swinger</h1>
+        <h2>Two Spiders. One Skyline.</h2>
+        <div class="badges">
+            <span class="badge peter">Peter Parker</span>
+            <span class="badge miles">Miles Morales</span>
+        </div>
+        <p id="overlay-msg">
+            Procedural city, Verlet pendulum physics, three villains on the rooftops.<br>
+            Click to lock the mouse and drop in.
+        </p>
+        <div id="mode-select">
+            <button class="cta" id="mode-continue" style="display:none;">CONTINUE</button>
+            <button class="cta" id="mode-story">NEW STORY</button>
+            <button class="cta ghost" id="mode-free">FREE ROAM</button>
+        </div>
+        <div id="save-summary" style="font-size:12px; color:#888; margin-top:8px;"></div>
+        <div id="attribution" style="display:none; font-size:11px; color:#777; margin-top:14px;"></div>
+        <div class="cta" id="overlay-cta" style="display:none;">CLICK TO PLAY</div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

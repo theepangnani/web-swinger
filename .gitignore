@@ -1,0 +1,15 @@
+# Reinstalled from package-lock.json
+node_modules/
+
+# Build output — `npm run build` regenerates it
+dist/
+
+# Vite's dep-prebundle cache
+.vite/
+
+# Editor / OS noise
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.local
