@@ -337,13 +337,55 @@ console.log('[11] director');
     else ok('ambient radio yields to written scenes');
   }
 
-  // A backlog is a bug, not a story: the queue is capped.
+  // A backlog is a bug, not a story: the queue is capped. But the cap must
+  // clear the worst *legitimate* burst, which is the one below.
   {
     const d = new StoryDirector();
     let accepted = 0;
-    for (let i = 0; i < 40; i++) if (d.play([['YURI', `Line ${i}.`]])) accepted++;
-    if (accepted > 8) fail(`director queued ${accepted} scenes — the cap is not holding`);
-    else ok(`queue capped at ${accepted} pending scenes`);
+    for (let i = 0; i < 200; i++) if (d.play([['YURI', `Line ${i}.`]])) accepted++;
+    if (accepted >= 200) fail('the queue cap is not holding at all');
+    else if (accepted < 8) fail(`queue caps at ${accepted} scenes, below the worst legitimate burst of 7`);
+    else ok(`queue capped at ${accepted} pending scenes, clear of the 7-scene burst`);
+  }
+
+  // The regression this cap was sized for. A final boss falling issues seven
+  // scenes in one synchronous callback, and at a cap of four the last two —
+  // the next chapter's opening exchange and the new boss's entrance — were
+  // silently thrown away at the single most important moment in the game.
+  {
+    const d = new StoryDirector();
+    d.setHero('MILES');
+    const burst = [
+      ['defeat line', () => d.play(CHAPTER_BEATS['Two Against'].down['SYMBIOTE PETER'])],
+      ['closing exchange', () => d.play(CHAPTER_BEATS['Two Against'].close)],
+      ['chapter card', () => d.playCard('BOOK SEVEN - CH 1/6', 'The Cat Comes Back')],
+      ['hero-change card', () => d.playCard('STORY', 'MILES MORALES takes this one.')],
+      ['opening exchange', () => d.play(CHAPTER_BEATS['The Cat Comes Back'].open)],
+      ['boss entrance', () => d.play(CHAPTER_BEATS['The Cat Comes Back'].meet['BLACK CAT'])],
+      ['second entrance', () => d.play(CHAPTER_BEATS['Bought And Paid For'].meet['GREEN GOBLIN'])],
+    ];
+    const dropped = burst.filter(([, queue]) => !queue()).map(([what]) => what);
+    if (dropped.length) fail(`chapter-transition burst dropped: ${dropped.join(', ')}`);
+    else ok('a full 7-scene chapter transition queues without dropping anything');
+  }
+
+  // Each line publishes the duration the director will hold it for, so the
+  // subtitle can last exactly as long as the voice reading it.
+  {
+    const d = new StoryDirector();
+    const seen = [];
+    d.onLine = (line) => seen.push(line);
+    d.onCard = (card) => seen.push(card);
+    d.play([
+      ['YURI', 'Go.'],
+      ['MJ', 'Serial numbers ground off, but the casing polymer is proprietary. One manufacturer makes it.'],
+    ]);
+    d.playCard('BOOK ONE', 'Shift Change');
+    for (let i = 0; i < 200 && d.busy; i++) d.update(0.25);
+    if (seen.length !== 3) fail(`expected 3 entries, got ${seen.length}`);
+    else if (!seen.every((e) => e.seconds > 0)) fail('an entry published no duration');
+    else if (!(seen[1].seconds > seen[0].seconds)) fail('a long line is not held longer than a short one');
+    else ok(`durations published: ${seen.map((e) => e.seconds.toFixed(1)).join('s, ')}s`);
   }
 
   // Idle fires once, and only after everything has been said.

@@ -70,6 +70,8 @@ export interface StoryCard {
   /** "BOOK TWO · CH 1/5" */
   readonly label: string;
   readonly title: string;
+  /** How long it holds the screen, so the HUD can match the director. */
+  readonly seconds: number;
 }
 
 /** Delivered form, after `HERO` and `PARTNER` are resolved to a real speaker. */
@@ -81,6 +83,14 @@ export interface StoryLine {
    * pack can be indexed exactly the way barks are.
    */
   readonly clip: number;
+  /**
+   * How long the director holds the floor for this line.
+   *
+   * Published rather than kept private because the subtitle has to last
+   * exactly as long: on the HUD's fixed bark window a six-second line lost its
+   * text halfway through being read aloud.
+   */
+  readonly seconds: number;
 }
 
 export interface ChapterBeats {
@@ -747,8 +757,20 @@ export class StoryDirector {
   /** Fires once when the queue empties, so barks can be let back in. */
   onIdle: (() => void) | null = null;
 
-  /** Cap on queued scenes. A backlog longer than this is a bug, not a story. */
-  private static readonly MAX_QUEUED = 4;
+  /**
+   * Cap on queued scenes. A backlog longer than this is a bug, not a story.
+   *
+   * Sized against the real worst case rather than a round number, because the
+   * cap silently drops whatever arrives past it and the burst it has to
+   * survive is the most important moment in the game. A final boss falling at
+   * the end of a chapter issues, in one synchronous callback: that villain's
+   * defeat line, the chapter's closing exchange, the next chapter's title
+   * card, a hero-change card if the next chapter forces one, its opening
+   * exchange, and an arrival line for each villain it fields — seven for a
+   * team-up. At four, the boss entrance and sometimes the opening exchange
+   * were being thrown away exactly there.
+   */
+  private static readonly MAX_QUEUED = 12;
 
   private hero: HeroId = 'PETER';
   private readonly pending: Entry[][] = [];
@@ -778,7 +800,7 @@ export class StoryDirector {
     const lines = script.map(([who, text]): Entry => {
       const speaker: StorySpeaker = who === 'HERO' ? this.hero : who === 'PARTNER' ? partner : who;
       const bank = STORY_LINES[speaker];
-      return { line: { speaker, text, clip: bank ? bank.indexOf(text) : -1 } };
+      return { line: { speaker, text, clip: bank ? bank.indexOf(text) : -1, seconds: lineSeconds(text) } };
     });
     this.pending.push(lines);
     this.announcedIdle = false;
@@ -788,7 +810,7 @@ export class StoryDirector {
   /** Queues a title card in its proper place in the running order. */
   playCard(label: string, title: string): boolean {
     if (this.pending.length >= StoryDirector.MAX_QUEUED) return false;
-    this.pending.push([{ card: { label, title } }]);
+    this.pending.push([{ card: { label, title, seconds: CARD_SECONDS } }]);
     this.announcedIdle = false;
     return true;
   }
@@ -830,11 +852,11 @@ export class StoryDirector {
     const entry = this.current[this.cursor]!;
     this.cursor++;
     if ('card' in entry) {
-      this.timer = CARD_SECONDS;
+      this.timer = entry.card.seconds;
       this.onCard?.(entry.card);
       return;
     }
-    this.timer = lineSeconds(entry.line.text);
+    this.timer = entry.line.seconds;
     this.onLine?.(entry.line);
   }
 }

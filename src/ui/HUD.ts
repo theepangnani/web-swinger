@@ -172,7 +172,7 @@ export class HUD {
 
     if (this.subtitleTimer > 0) {
       this.subtitleTimer = Math.max(0, this.subtitleTimer - dt);
-      // Hold full opacity, then fade over the last third of the window.
+      // Hold full opacity, then fade over the last second or so.
       const fade = clamp(this.subtitleTimer / (CONFIG.voice.subtitleSeconds * 0.33), 0, 1);
       this.setStyle(this.subtitle, 'opacity', fade.toFixed(2));
     }
@@ -462,12 +462,18 @@ export class HUD {
     this.setStyle(this.overlayCta, 'display', visible ? 'none' : 'block');
   }
 
-  /** Displays a bark subtitle for `CONFIG.voice.subtitleSeconds`. */
-  showSubtitle(speaker: string, text: string, color: string): void {
+  /**
+   * Displays a subtitle, by default for `CONFIG.voice.subtitleSeconds`.
+   *
+   * Scripted story lines pass their own duration. A long one holds the floor
+   * for up to six and a half seconds, and on the fixed bark window the text
+   * disappeared three seconds before the voice reading it had finished.
+   */
+  showSubtitle(speaker: string, text: string, color: string, seconds?: number): void {
     this.setText(this.subtitleSpeaker, speaker);
     this.setStyle(this.subtitleSpeaker, 'color', color);
     this.setText(this.subtitleText, text);
-    this.subtitleTimer = CONFIG.voice.subtitleSeconds;
+    this.subtitleTimer = seconds ?? CONFIG.voice.subtitleSeconds;
     this.setStyle(this.subtitle, 'opacity', '1');
   }
 

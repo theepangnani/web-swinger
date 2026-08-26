@@ -774,6 +774,15 @@ export const CONFIG = {
     dispatchChance: 0.45,
     /** Minimum gap between two dispatch callouts, seconds. */
     dispatchCooldown: 40,
+    /**
+     * How close a live villain has to be before the radio goes quiet, metres.
+     *
+     * Gating on "is any villain alive anywhere" starved free roam completely:
+     * it brings the whole roster out at once, so that test is permanently true
+     * and not one radio segment could ever play. What actually wants silence
+     * is a fight the player is *in*.
+     */
+    calmRadius: 150,
     /** Extra seconds a scripted line holds the bark channel after it ends. */
     lineTail: 0.6,
   },

@@ -318,14 +318,17 @@ export class Game {
     // bark channel for as long as it is on screen.
     this.story.setHero(this.player.heroId);
     this.story.onLine = (line): void => {
-      const seconds = CONFIG.voice.subtitleSeconds + CONFIG.story.lineTail;
-      this.hud.showSubtitle(speakerName(line.speaker), line.text, speakerColor(line.speaker));
+      // The director already decided how long this line holds the floor, and
+      // the subtitle has to match it: on the fixed bark window a long line
+      // lost its text several seconds before the voice stopped reading it.
+      const seconds = line.seconds + CONFIG.story.lineTail;
+      this.hud.showSubtitle(speakerName(line.speaker), line.text, speakerColor(line.speaker), seconds);
       this.voice.line(line.speaker, line.text, line.clip, seconds);
     };
     // Chapter cards ride the same queue so they land between the chapter that
     // just closed and the one about to open, rather than being painted over.
     this.story.onCard = (card): void => {
-      this.hud.showSubtitle(card.label, card.title, '#ffb703');
+      this.hud.showSubtitle(card.label, card.title, '#ffb703', card.seconds);
       this.sfx.play('alert', 0.35);
     };
     // Optional recorded-clip pack; absent by default. See public/voice/.
@@ -364,11 +367,14 @@ export class Game {
     };
     this.thugs.onTelegraph = (): void => this.sfx.play('alert', 0.35);
     this.enemies.onDefeated = (villain): void => {
-      this.voice.say('villain_down', true);
       this.playBeat('down', villain.kind);
       this.awardXp(CONFIG.progression.xp.villain);
       this.recordDefeat(villain.kind);
       this.advanceCampaign();
+      // The hero's own line only if nothing written claimed the moment. Said
+      // first it was posted to the subtitle and then painted over by the
+      // villain's defeat line one frame later, with its speech cut off.
+      if (!this.story.busy) this.voice.say('villain_down', true);
       this.markDirty();
     };
     this.thugs.onThugDefeated = (): void => {
@@ -378,12 +384,12 @@ export class Game {
     this.thugs.onCrimeStarted = (): void => this.callInCrime();
     this.thugs.onCrimeResolved = (): void => {
       this.awardXp(CONFIG.progression.xp.crime);
-      this.voice.say('villain_down', true);
       this.crimesCleared++;
       this.crimesSinceVillain++;
       this.logStoryEvent(CRIME);
       this.advanceCampaign();
       this.playMidBeat();
+      if (!this.story.busy) this.voice.say('villain_down', true);
       this.markDirty();
     };
     // The partner speaks in their own hero's voice, not the player's.
@@ -717,8 +723,13 @@ export class Game {
       this.villainsSurfaced > 0 &&
       !this.announcedClear
     ) {
-      this.announcedClear = true;
-      spoke = this.voice.say('all_clear', true) || spoke;
+      // Latched on the line actually going out, not on the attempt. Written
+      // dialogue suppresses barks, and a chapter closing is exactly when the
+      // city goes quiet — latching on the attempt lost this line for good.
+      if (this.voice.say('all_clear', true)) {
+        this.announcedClear = true;
+        spoke = true;
+      }
     }
 
     // Idle chatter only when genuinely uneventful.
@@ -1257,11 +1268,26 @@ export class Game {
    */
   private callInCrime(): void {
     if (!CONFIG.story.enabled || this.dispatchCooldown > 0) return;
-    if (this.story.busy || this.enemies.remaining > 0) return;
+    if (this.story.busy || this.inVillainFight()) return;
     if (Math.random() > CONFIG.story.dispatchChance) return;
     this.dispatchCooldown = CONFIG.story.dispatchCooldown;
     this.story.play(DISPATCH[this.dispatchCursor % DISPATCH.length], 'AMBIENT');
     this.dispatchCursor++;
+  }
+
+  /**
+   * Whether a live villain is close enough that this counts as a fight.
+   *
+   * Walks `villains` rather than the `engaged` getter, which filters into a
+   * fresh array — correct once, but this is called every frame.
+   */
+  private inVillainFight(): boolean {
+    const radius = CONFIG.story.calmRadius * CONFIG.story.calmRadius;
+    for (const villain of this.enemies.villains) {
+      if (!villain.alive || villain.dormant) continue;
+      if (villain.pos.distanceToSquared(this.player.pos) < radius) return true;
+    }
+    return false;
   }
 
   /**
@@ -1276,8 +1302,8 @@ export class Game {
     this.dispatchCooldown = Math.max(0, this.dispatchCooldown - dt);
     if (!CONFIG.story.enabled) return;
 
-    // Calm means calm — no scene running, and nothing in the city on fire.
-    if (this.story.busy || this.enemies.remaining > 0) {
+    // Calm means calm — no scene running, and no fight the player is in.
+    if (this.story.busy || this.inVillainFight()) {
       this.ambientTimer = CONFIG.story.ambientInterval;
       return;
     }
@@ -1319,12 +1345,7 @@ export class Game {
     this.player.setHero(required);
     this.voice.setHero(required);
     this.story.setHero(required);
-    this.hud.showSubtitle(
-      'SWITCH',
-      `${HEROES[required].name} takes this one — that is not a partner any more.`,
-      '#ffb703',
-    );
-    this.sfx.play('alert', 0.5);
+    this.story.playCard('SWITCH', `${HEROES[required].name} takes this one — that is not a partner any more.`);
   }
 
   /**
@@ -1420,6 +1441,8 @@ export class Game {
     this.progression.restore(data.progression);
     this.player.restoreAppearance(data.heroId, data.suitByHero);
     this.voice.setHero(this.player.heroId);
+    // Without this, a save loaded as Miles resolved every HERO line to Peter.
+    this.story.setHero(this.player.heroId);
     this.crimesCleared = data.crimesCleared;
     this.villainsSurfaced = data.villainsSurfaced;
     this.playtime = data.playtime;
