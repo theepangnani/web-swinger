@@ -1,0 +1,746 @@
+{
+  "PETER": {
+    "swing_start": [
+      "peter/swing-start-0-okay-back-to-work.mp3",
+      "peter/swing-start-1-line-looks-good.mp3",
+      "peter/swing-start-2-here-we-go-again.mp3"
+    ],
+    "swing_chain": [
+      "peter/swing-chain-0-rhythm-keep-the-rhythm.mp3",
+      "peter/swing-chain-1-there-it-is.mp3",
+      "peter/swing-chain-2-smooth-mostly.mp3"
+    ],
+    "high_speed": [
+      "peter/high-speed-0-beats-the-subway.mp3",
+      "peter/high-speed-1-try-getting-a-cab-at-this-hour.mp3",
+      "peter/high-speed-2-now-we-are-moving.mp3"
+    ],
+    "big_fall": [
+      "peter/big-fall-0-nope-nope-nope.mp3",
+      "peter/big-fall-1-this-is-fine-everything-is-fine.mp3",
+      "peter/big-fall-2-web-web-any-web.mp3"
+    ],
+    "hard_landing": [
+      "peter/hard-landing-0-i-felt-that-in-my-knees.mp3",
+      "peter/hard-landing-1-stuck-the-landing-barely.mp3",
+      "peter/hard-landing-2-getting-too-old-for-that.mp3"
+    ],
+    "wall_crawl": [
+      "peter/wall-crawl-0-just-hanging-around.mp3",
+      "peter/wall-crawl-1-nothing-to-see-here.mp3",
+      "peter/wall-crawl-2-ignore-the-guy-on-the-wall.mp3"
+    ],
+    "strike_hit": [
+      "peter/strike-hit-0-sorry-not-sorry.mp3",
+      "peter/strike-hit-1-that-is-going-to-leave-a-mark.mp3",
+      "peter/strike-hit-2-sit-down.mp3"
+    ],
+    "combo": [
+      "peter/combo-0-still-got-it.mp3",
+      "peter/combo-1-okay-now-i-am-showing-off.mp3",
+      "peter/combo-2-do-not-get-used-to-this.mp3"
+    ],
+    "villain_down": [
+      "peter/villain-down-0-stay-down-please.mp3",
+      "peter/villain-down-1-one-less-problem-tonight.mp3",
+      "peter/villain-down-2-that-is-the-easy-part-done.mp3"
+    ],
+    "hurt": [
+      "peter/hurt-0-ow-noted.mp3",
+      "peter/hurt-1-that-one-hurt-my-feelings-too.mp3",
+      "peter/hurt-2-bad-idea-understood.mp3"
+    ],
+    "low_health": [
+      "peter/low-health-0-running-on-fumes.mp3",
+      "peter/low-health-1-regroup-parker.mp3",
+      "peter/low-health-2-not-great-not-great-at-all.mp3"
+    ],
+    "ability": [
+      "peter/ability-0-suit-is-running-hot.mp3",
+      "peter/ability-1-everything-i-have-got.mp3",
+      "peter/ability-2-let-us-end-this-quickly.mp3"
+    ],
+    "swap": [
+      "peter/swap-0-your-turn-kid.mp3",
+      "peter/swap-1-try-not-to-break-anything.mp3",
+      "peter/swap-2-all-yours.mp3"
+    ],
+    "all_clear": [
+      "peter/all-clear-0-city-is-quiet-for-now.mp3",
+      "peter/all-clear-1-that-is-all-of-them-finally.mp3",
+      "peter/all-clear-2-go-home-everybody.mp3"
+    ],
+    "idle": [
+      "peter/idle-0-suspiciously-quiet-tonight.mp3",
+      "peter/idle-1-i-should-be-asleep.mp3",
+      "peter/idle-2-anyone-need-a-hand-anyone.mp3"
+    ],
+    "ally_join": [
+      "peter/ally-join-0-i-heard-i-came.mp3",
+      "peter/ally-join-1-you-are-not-doing-this-one-alone.mp3",
+      "peter/ally-join-2-right-behind-you-kid.mp3"
+    ],
+    "ally_engage": [
+      "peter/ally-engage-0-i-have-got-this-side.mp3",
+      "peter/ally-engage-1-left-is-mine.mp3",
+      "peter/ally-engage-2-go-i-will-hold-them.mp3"
+    ],
+    "ally_downed": [
+      "peter/ally-downed-0-down-give-me-a-second.mp3",
+      "peter/ally-downed-1-i-am-up-i-am-up-almost.mp3",
+      "peter/ally-downed-2-do-not-wait-for-me.mp3"
+    ],
+    "ally_revived": [
+      "peter/ally-revived-0-back-on-my-feet.mp3",
+      "peter/ally-revived-1-told-you-second-wind.mp3",
+      "peter/ally-revived-2-right-where-were-we.mp3"
+    ],
+    "ally_kill": [
+      "peter/ally-kill-0-that-is-one.mp3",
+      "peter/ally-kill-1-handled.mp3",
+      "peter/ally-kill-2-next.mp3"
+    ],
+    "ally_banter": [
+      "peter/ally-banter-0-you-are-getting-good-at-this-you-know.mp3",
+      "peter/ally-banter-1-aunt-may-would-like-this-rooftop.mp3",
+      "peter/ally-banter-2-remind-me-to-teach-you-the-landing.mp3"
+    ],
+    "ally_ability": [
+      "peter/ally-ability-0-hold-still.mp3",
+      "peter/ally-ability-1-pulling-it-down.mp3",
+      "peter/ally-ability-2-not-today.mp3"
+    ],
+    "story": [
+      "peter/story-0-good-to-know-i-was-missed.mp3",
+      "peter/story-1-as-opposed-to.mp3",
+      "peter/story-2-so-either-a-ghost-or-somebody-very-good.mp3",
+      "peter/story-3-every-address-she-hit-is-leased-by-the-s.mp3",
+      "peter/story-4-she-was-carrying-something-that-was-not-.mp3",
+      "peter/story-5-you-could-just-stop-running.mp3",
+      "peter/story-6-there-is-a-file.mp3",
+      "peter/story-7-she-wanted-me-to-have-it.mp3",
+      "peter/story-8-it-is-a-tired-city.mp3",
+      "peter/story-9-she-is-coming-back-for-the-card.mp3",
+      "peter/story-10-then-we-let-her-reach-it-and-we-follow-h.mp3",
+      "peter/story-11-you-have-been-reading-my-mail.mp3",
+      "peter/story-12-that-narrows-it-to-about-nine-people-in-.mp3",
+      "peter/story-13-you-should-be-mostly-insulted.mp3",
+      "peter/story-14-she-is-not-wrong.mp3",
+      "peter/story-15-who-paid-you-felicia.mp3",
+      "peter/story-16-then-somebody-is-taking-it.mp3",
+      "peter/story-17-following-a-line.mp3",
+      "peter/story-18-he-is-not-stealing-power-he-is-billing-t.mp3",
+      "peter/story-19-i-know-i-read-the-file.mp3",
+      "peter/story-20-we-will-find-somebody-who-can-help.mp3",
+      "peter/story-21-dillon-was-contract-labour-under-a-subco.mp3",
+      "peter/story-22-he-is-out.mp3",
+      "peter/story-23-out-and-charging-somebody-posted-his-bai.mp3",
+      "peter/story-24-somebody-with-money-and-patience.mp3",
+      "peter/story-25-that-is-a-lot-of-grid.mp3",
+      "peter/story-26-who-did.mp3",
+      "peter/story-27-what-are-they-saying.mp3",
+      "peter/story-28-whatever-it-is-it-is-not-hunting-for-mon.mp3",
+      "peter/story-29-it-has-been-on-my-roof.mp3",
+      "peter/story-30-mine-the-one-with-my-name-on-the-lease.mp3",
+      "peter/story-31-it-is-not-following-the-city-it-is-follo.mp3",
+      "peter/story-32-it-said-we-every-single-time-we.mp3",
+      "peter/story-33-everybody-knows-a-man-in-a-mask.mp3",
+      "peter/story-34-stay-down.mp3",
+      "peter/story-35-nine-months-ago-is-when-the-bad-nights-s.mp3",
+      "peter/story-36-it-came-to-my-window-last-night-not-your.mp3",
+      "peter/story-37-then-it-is-choosing-that-is-worse.mp3",
+      "peter/story-38-it-did-not-lose-it-left.mp3",
+      "peter/story-39-that-is-genuinely-the-worst-thing-anyone.mp3",
+      "peter/story-40-where-does-a-corner-store-stick-up-find-.mp3",
+      "peter/story-41-let-me-guess.mp3",
+      "peter/story-42-it-is-not-a-drone-drones-do-not-laugh.mp3",
+      "peter/story-43-osborn.mp3",
+      "peter/story-44-she-is-on-his-payroll-she-has-been-the-w.mp3",
+      "peter/story-45-and-she-has-been-handing-us-the-truth-on.mp3",
+      "peter/story-46-you-took-his-money.mp3",
+      "peter/story-47-gone-where.mp3",
+      "peter/story-48-so-he-is-not-doing-this-for-money.mp3",
+      "peter/story-49-he-is-not-robbing-these-sites-he-is-digg.mp3",
+      "peter/story-50-one-job-for-who-flint.mp3",
+      "peter/story-51-you-are-in-the-middle-of-an-avenue-flint.mp3",
+      "peter/story-52-it-is-always-one-more-job.mp3",
+      "peter/story-53-he-has-been-underneath-us-this-whole-tim.mp3",
+      "peter/story-54-the-reservoir-level-is-dropping-fast.mp3",
+      "peter/story-55-he-is-not-hiding-down-there-he-is-drinki.mp3",
+      "peter/story-56-he-used-a-father-to-move-a-block-of-dirt.mp3",
+      "peter/story-57-she-called-this-one-in-herself.mp3",
+      "peter/story-58-that-is-new.mp3",
+      "peter/story-59-she-burned-her-own-payday-to-warn-us.mp3",
+      "peter/story-60-why-tell-us.mp3",
+      "peter/story-61-one-down-the-rest-of-them-are-already-mo.mp3",
+      "peter/story-62-burn-it-all-of-it-this-time.mp3",
+      "peter/story-63-flint-last-chance-to-walk-away-from-him.mp3",
+      "peter/story-64-somebody-get-that-man-a-phone-call.mp3",
+      "peter/story-65-it-is-not-over-it-is-just-quiet.mp3",
+      "peter/story-66-neither-do-i-flint.mp3",
+      "peter/story-67-somebody-who-never-signs-anything.mp3",
+      "peter/story-68-it-is-still-out-there.mp3",
+      "peter/story-69-marko-goes-back-inside-and-his-daughter-.mp3",
+      "peter/story-70-give-it-a-week.mp3",
+      "peter/story-71-then-it-is-me-fine-it-is-always-me.mp3",
+      "peter/story-72-what-kind-of-burn.mp3",
+      "peter/story-73-i-can-look-at-it-tonight.mp3",
+      "peter/story-74-do-not-cash-it.mp3",
+      "peter/story-75-so-what-now.mp3",
+      "peter/story-76-send-it.mp3",
+      "peter/story-77-it-is-a-very-good-roof.mp3",
+      "peter/story-78-then-keep-them-off-the-roofs.mp3"
+    ]
+  },
+  "MILES": {
+    "swing_start": [
+      "miles/swing-start-0-alright-alright.mp3",
+      "miles/swing-start-1-let-us-go.mp3",
+      "miles/swing-start-2-say-less.mp3"
+    ],
+    "swing_chain": [
+      "miles/swing-chain-0-yes-keep-it-going.mp3",
+      "miles/swing-chain-1-that-is-the-one.mp3",
+      "miles/swing-chain-2-locked-in.mp3"
+    ],
+    "high_speed": [
+      "miles/high-speed-0-this-never-gets-old.mp3",
+      "miles/high-speed-1-woooo.mp3",
+      "miles/high-speed-2-fastest-kid-in-the-city.mp3"
+    ],
+    "big_fall": [
+      "miles/big-fall-0-not-like-this-not-like-this.mp3",
+      "miles/big-fall-1-somebody-catch-me.mp3",
+      "miles/big-fall-2-okay-that-is-very-far-down.mp3"
+    ],
+    "hard_landing": [
+      "miles/hard-landing-0-i-am-fine-i-am-fine.mp3",
+      "miles/hard-landing-1-walked-that-one-off.mp3",
+      "miles/hard-landing-2-ow-worth-it.mp3"
+    ],
+    "wall_crawl": [
+      "miles/wall-crawl-0-nobody-look-up.mp3",
+      "miles/wall-crawl-1-just-chilling.mp3",
+      "miles/wall-crawl-2-wall-guy-that-is-me.mp3"
+    ],
+    "strike_hit": [
+      "miles/strike-hit-0-got-him.mp3",
+      "miles/strike-hit-1-that-is-what-i-am-talking-about.mp3",
+      "miles/strike-hit-2-boom.mp3"
+    ],
+    "combo": [
+      "miles/combo-0-you-seeing-this.mp3",
+      "miles/combo-1-too-easy.mp3",
+      "miles/combo-2-i-am-cooking.mp3"
+    ],
+    "villain_down": [
+      "miles/villain-down-0-down-next.mp3",
+      "miles/villain-down-1-that-is-one.mp3",
+      "miles/villain-down-2-told-you.mp3"
+    ],
+    "hurt": [
+      "miles/hurt-0-okay-my-bad.mp3",
+      "miles/hurt-1-that-was-on-me.mp3",
+      "miles/hurt-2-ow-rude.mp3"
+    ],
+    "low_health": [
+      "miles/low-health-0-i-need-a-second.mp3",
+      "miles/low-health-1-not-good-not-good.mp3",
+      "miles/low-health-2-give-me-a-minute-here.mp3"
+    ],
+    "ability": [
+      "miles/ability-0-charged-up.mp3",
+      "miles/ability-1-everybody-back-up.mp3",
+      "miles/ability-2-watch-this.mp3"
+    ],
+    "swap": [
+      "miles/swap-0-i-got-it-from-here.mp3",
+      "miles/swap-1-go-rest-old-man.mp3",
+      "miles/swap-2-my-turn.mp3"
+    ],
+    "all_clear": [
+      "miles/all-clear-0-we-did-it.mp3",
+      "miles/all-clear-1-city-is-safe-for-real-this-time.mp3",
+      "miles/all-clear-2-that-was-all-of-them.mp3"
+    ],
+    "idle": [
+      "miles/idle-0-i-should-be-doing-homework.mp3",
+      "miles/idle-1-slow-night-huh.mp3",
+      "miles/idle-2-somebody-has-to-be-up-here.mp3"
+    ],
+    "ally_join": [
+      "miles/ally-join-0-you-called-i-came.mp3",
+      "miles/ally-join-1-two-spider-men-deal-with-it.mp3",
+      "miles/ally-join-2-okay-now-it-is-a-fight.mp3"
+    ],
+    "ally_engage": [
+      "miles/ally-engage-0-i-got-these.mp3",
+      "miles/ally-engage-1-mine-mine.mp3",
+      "miles/ally-engage-2-go-i-am-on-it.mp3"
+    ],
+    "ally_downed": [
+      "miles/ally-downed-0-ah-down-down.mp3",
+      "miles/ally-downed-1-give-me-a-sec-give-me-a-sec.mp3",
+      "miles/ally-downed-2-i-am-okay-i-am-not-okay.mp3"
+    ],
+    "ally_revived": [
+      "miles/ally-revived-0-back-up.mp3",
+      "miles/ally-revived-1-that-is-not-happening-twice.mp3",
+      "miles/ally-revived-2-okay-round-two.mp3"
+    ],
+    "ally_kill": [
+      "miles/ally-kill-0-got-one.mp3",
+      "miles/ally-kill-1-sit-down.mp3",
+      "miles/ally-kill-2-that-is-mine.mp3"
+    ],
+    "ally_banter": [
+      "miles/ally-banter-0-you-ever-think-about-how-weird-this-all-.mp3",
+      "miles/ally-banter-1-we-should-get-a-team-name.mp3",
+      "miles/ally-banter-2-race-you-to-the-bridge-after.mp3"
+    ],
+    "ally_ability": [
+      "miles/ally-ability-0-venom-blast.mp3",
+      "miles/ally-ability-1-everybody-down.mp3",
+      "miles/ally-ability-2-lighting-it-up.mp3"
+    ],
+    "story": [
+      "miles/story-0-good-to-know-i-was-missed.mp3",
+      "miles/story-1-as-opposed-to.mp3",
+      "miles/story-2-so-either-a-ghost-or-somebody-very-good.mp3",
+      "miles/story-3-every-address-she-hit-is-leased-by-the-s.mp3",
+      "miles/story-4-she-was-carrying-something-that-was-not-.mp3",
+      "miles/story-5-you-could-just-stop-running.mp3",
+      "miles/story-6-there-is-a-file.mp3",
+      "miles/story-7-she-wanted-me-to-have-it.mp3",
+      "miles/story-8-it-is-a-tired-city.mp3",
+      "miles/story-9-she-is-coming-back-for-the-card.mp3",
+      "miles/story-10-then-we-let-her-reach-it-and-we-follow-h.mp3",
+      "miles/story-11-you-have-been-reading-my-mail.mp3",
+      "miles/story-12-that-narrows-it-to-about-nine-people-in-.mp3",
+      "miles/story-13-you-should-be-mostly-insulted.mp3",
+      "miles/story-14-she-is-not-wrong.mp3",
+      "miles/story-15-who-paid-you-felicia.mp3",
+      "miles/story-16-then-somebody-is-taking-it.mp3",
+      "miles/story-17-following-a-line.mp3",
+      "miles/story-18-he-is-not-stealing-power-he-is-billing-t.mp3",
+      "miles/story-19-i-know-i-read-the-file.mp3",
+      "miles/story-20-we-will-find-somebody-who-can-help.mp3",
+      "miles/story-21-dillon-was-contract-labour-under-a-subco.mp3",
+      "miles/story-22-he-is-out.mp3",
+      "miles/story-23-out-and-charging-somebody-posted-his-bai.mp3",
+      "miles/story-24-somebody-with-money-and-patience.mp3",
+      "miles/story-25-that-is-a-lot-of-grid.mp3",
+      "miles/story-26-who-did.mp3",
+      "miles/story-27-what-are-they-saying.mp3",
+      "miles/story-28-whatever-it-is-it-is-not-hunting-for-mon.mp3",
+      "miles/story-29-it-has-been-on-my-roof.mp3",
+      "miles/story-30-mine-the-one-with-my-name-on-the-lease.mp3",
+      "miles/story-31-it-is-not-following-the-city-it-is-follo.mp3",
+      "miles/story-32-it-said-we-every-single-time-we.mp3",
+      "miles/story-33-everybody-knows-a-man-in-a-mask.mp3",
+      "miles/story-34-stay-down.mp3",
+      "miles/story-35-nine-months-ago-is-when-the-bad-nights-s.mp3",
+      "miles/story-36-it-came-to-my-window-last-night-not-your.mp3",
+      "miles/story-37-then-it-is-choosing-that-is-worse.mp3",
+      "miles/story-38-it-did-not-lose-it-left.mp3",
+      "miles/story-39-that-is-genuinely-the-worst-thing-anyone.mp3",
+      "miles/story-40-where-does-a-corner-store-stick-up-find-.mp3",
+      "miles/story-41-let-me-guess.mp3",
+      "miles/story-42-it-is-not-a-drone-drones-do-not-laugh.mp3",
+      "miles/story-43-osborn.mp3",
+      "miles/story-44-she-is-on-his-payroll-she-has-been-the-w.mp3",
+      "miles/story-45-and-she-has-been-handing-us-the-truth-on.mp3",
+      "miles/story-46-you-took-his-money.mp3",
+      "miles/story-47-gone-where.mp3",
+      "miles/story-48-so-he-is-not-doing-this-for-money.mp3",
+      "miles/story-49-he-is-not-robbing-these-sites-he-is-digg.mp3",
+      "miles/story-50-one-job-for-who-flint.mp3",
+      "miles/story-51-you-are-in-the-middle-of-an-avenue-flint.mp3",
+      "miles/story-52-it-is-always-one-more-job.mp3",
+      "miles/story-53-he-has-been-underneath-us-this-whole-tim.mp3",
+      "miles/story-54-the-reservoir-level-is-dropping-fast.mp3",
+      "miles/story-55-he-is-not-hiding-down-there-he-is-drinki.mp3",
+      "miles/story-56-he-used-a-father-to-move-a-block-of-dirt.mp3",
+      "miles/story-57-something-is-wrong-with-peter.mp3",
+      "miles/story-58-he-put-a-man-through-a-door-over-a-stole.mp3",
+      "miles/story-59-he-told-me-he-has-never-felt-better-he-s.mp3",
+      "miles/story-60-the-black-is-not-a-suit-it-is-on-him.mp3",
+      "miles/story-61-there-is-a-mark-on-the-alley-wall-like-s.mp3",
+      "miles/story-62-gone.mp3",
+      "miles/story-63-it-had-him-for-days-and-i-did-not-see-it.mp3",
+      "miles/story-64-understood-ma.mp3",
+      "miles/story-65-he-is-not-hiding-from-me-he-is-waiting-f.mp3",
+      "miles/story-66-he-looked-at-me-for-one-second-it-was-ac.mp3",
+      "miles/story-67-you-are-not-him.mp3",
+      "miles/story-68-he-would-that-is-the-entire-point-of-him.mp3",
+      "miles/story-69-understood.mp3",
+      "miles/story-70-not-out-but-closer-than-yesterday.mp3",
+      "miles/story-71-no.mp3",
+      "miles/story-72-i-know-stay-down-i-am-right-here.mp3",
+      "miles/story-73-there-are-two-of-them-now.mp3",
+      "miles/story-74-it-multiplied.mp3",
+      "miles/story-75-peter-is-out-he-is-breathing-he-is-out.mp3",
+      "miles/story-76-she-called-this-one-in-herself.mp3",
+      "miles/story-77-that-is-new.mp3",
+      "miles/story-78-she-burned-her-own-payday-to-warn-us.mp3",
+      "miles/story-79-why-tell-us.mp3",
+      "miles/story-80-one-down-the-rest-of-them-are-already-mo.mp3",
+      "miles/story-81-burn-it-all-of-it-this-time.mp3",
+      "miles/story-82-flint-last-chance-to-walk-away-from-him.mp3",
+      "miles/story-83-somebody-get-that-man-a-phone-call.mp3",
+      "miles/story-84-one-roof-both-of-them-okay.mp3",
+      "miles/story-85-it-is-over.mp3",
+      "miles/story-86-i-will-take-quiet.mp3",
+      "miles/story-87-neither-do-i-flint.mp3",
+      "miles/story-88-then-do-not.mp3",
+      "miles/story-89-somebody-who-never-signs-anything.mp3",
+      "miles/story-90-it-is-still-out-there.mp3",
+      "miles/story-91-marko-goes-back-inside-and-his-daughter-.mp3",
+      "miles/story-92-he-is-asleep-actually-asleep.mp3",
+      "miles/story-93-we-did-that.mp3",
+      "miles/story-94-give-it-an-hour.mp3",
+      "miles/story-95-then-it-is-me-fine-it-is-always-me.mp3",
+      "miles/story-96-what-kind-of-burn.mp3",
+      "miles/story-97-i-can-look-at-it-tonight.mp3",
+      "miles/story-98-do-not-cash-it.mp3",
+      "miles/story-99-so-what-now.mp3",
+      "miles/story-100-send-it.mp3",
+      "miles/story-101-you-would-not.mp3",
+      "miles/story-102-okay-okay.mp3",
+      "miles/story-103-it-is-a-very-good-roof.mp3",
+      "miles/story-104-then-keep-them-off-the-roofs.mp3",
+      "miles/story-105-i-know.mp3"
+    ]
+  },
+  "VENOM": {
+    "idle": [
+      "venom/idle-0-we-see-you.mp3",
+      "venom/idle-1-come-closer.mp3",
+      "venom/idle-2-you-cannot-outrun-us.mp3",
+      "venom/idle-3-we-have-been-so-hungry.mp3"
+    ],
+    "story": [
+      "venom/story-0-we-know-you-we-know-what-you-are-underne.mp3",
+      "venom/story-1-we-knew-you-before-the-mask.mp3",
+      "venom/story-2-you-cannot-kill-us-we-are-already-yours.mp3",
+      "venom/story-3-two-of-you-better-we-were-still-hungry.mp3",
+      "venom/story-4-it-hurts-good-now-you-know-what-we-are.mp3",
+      "venom/story-5-we-will-find-a-warmer-one.mp3",
+      "venom/story-6-brother-come-away-from-him.mp3",
+      "venom/story-7-everything-is-ours.mp3",
+      "venom/story-8-we-are-the-older-one-he-is-only-a-copy.mp3",
+      "venom/story-9-the-little-one-hits-harder-than-the-old-.mp3",
+      "venom/story-10-you-are-alone-now-little-spider.mp3",
+      "venom/story-11-we-always-find-a-warmer-one.mp3",
+      "venom/story-12-there-is-more-of-us-than-you-can-carry.mp3",
+      "venom/story-13-we-bleed-we-have-never-bled.mp3",
+      "venom/story-14-we-can-hear-your-heart-slowing.mp3"
+    ]
+  },
+  "BLACK CAT": {
+    "idle": [
+      "black-cat/idle-0-try-to-keep-up.mp3",
+      "black-cat/idle-1-too-slow.mp3",
+      "black-cat/idle-2-catch-me-if-you-can.mp3",
+      "black-cat/idle-3-you-are-fun-briefly.mp3"
+    ],
+    "story": [
+      "black-cat/story-0-you-are-late-i-have-had-this-roof-to-mys.mp3",
+      "black-cat/story-1-and-ruin-the-only-fun-either-of-us-gets-.mp3",
+      "black-cat/story-2-not-bad-you-are-faster-than-the-file-sai.mp3",
+      "black-cat/story-3-there-is-always-a-file.mp3",
+      "black-cat/story-4-two-of-you-i-am-flattered-and-slightly-i.mp3",
+      "black-cat/story-5-two-of-you-and-i-am-still-ahead-think-ab.mp3",
+      "black-cat/story-6-take-it-it-was-never-going-to-be-worth-w.mp3",
+      "black-cat/story-7-ask-me-again-when-you-can-afford-the-ans.mp3",
+      "black-cat/story-8-i-am-a-very-good-one.mp3",
+      "black-cat/story-9-do-not-look-at-me-like-that.mp3",
+      "black-cat/story-10-i-took-his-money-and-gave-you-his-key-ca.mp3",
+      "black-cat/story-11-for-the-record-i-am-aiming-badly-on-purp.mp3",
+      "black-cat/story-12-i-am-busy.mp3",
+      "black-cat/story-13-go-and-get-him-i-will-be-gone-before-the.mp3",
+      "black-cat/story-14-do-not-thank-me-hit-me-once-it-has-to-lo.mp3",
+      "black-cat/story-15-he-is-putting-the-whole-roster-back-out-.mp3",
+      "black-cat/story-16-because-i-live-here-too.mp3",
+      "black-cat/story-17-all-right-you-have-my-attention-now.mp3",
+      "black-cat/story-18-stay-down-i-am-serious-stay-down.mp3"
+    ]
+  },
+  "ELECTRO": {
+    "idle": [
+      "electro/idle-0-feel-that.mp3",
+      "electro/idle-1-light-it-up.mp3",
+      "electro/idle-2-the-whole-grid-is-mine.mp3",
+      "electro/idle-3-everything-is-a-conductor.mp3"
+    ],
+    "story": [
+      "electro/story-0-nine-years-i-climbed-those-towers-nine-y.mp3",
+      "electro/story-1-then-you-know-nobody-came-nobody-ever-co.mp3",
+      "electro/story-2-it-does-not-switch-off-it-is-inside-me-n.mp3",
+      "electro/story-3-they-had-ten-years-to-help.mp3",
+      "electro/story-4-you-brought-a-friend-i-brought-the-grid.mp3",
+      "electro/story-5-you-think-grounding-me-ends-it-it-ends-w.mp3",
+      "electro/story-6-he-said-he-could-fix-me-he-said-it-would.mp3",
+      "electro/story-7-the-man-who-never-signs-anything.mp3",
+      "electro/story-8-he-gave-me-the-whole-grid-all-of-it-at-o.mp3",
+      "electro/story-9-he-never-fixed-anything-he-only-made-it-.mp3",
+      "electro/story-10-you-want-to-know-what-nine-years-feels-l.mp3",
+      "electro/story-11-everything-ends-grounded.mp3"
+    ]
+  },
+  "GREEN GOBLIN": {
+    "idle": [
+      "green-goblin/idle-0-look-up.mp3",
+      "green-goblin/idle-1-catch-this-one.mp3",
+      "green-goblin/idle-2-higher-come-on-higher.mp3",
+      "green-goblin/idle-3-wonderful-do-it-again.mp3"
+    ],
+    "story": [
+      "green-goblin/story-0-there-he-is-the-only-honest-man-in-the-c.mp3",
+      "green-goblin/story-1-mister-osborn-i-built-half-of-what-you-a.mp3",
+      "green-goblin/story-2-you-have-not-won-anything-you-have-only-.mp3",
+      "green-goblin/story-3-you-were-supposed-to-be-a-distraction-fe.mp3",
+      "green-goblin/story-4-everyone-in-this-city-is-for-sale-she-wa.mp3",
+      "green-goblin/story-5-felicia-do-something-useful-or-i-stop-pa.mp3",
+      "green-goblin/story-6-tell-them-whatever-you-like-nobody-belie.mp3",
+      "green-goblin/story-7-faster-mister-marko.mp3",
+      "green-goblin/story-8-you-are-whatever-i-have-paid-for.mp3",
+      "green-goblin/story-9-then-earn-it-mister-marko-bury-them-and-.mp3",
+      "green-goblin/story-10-deeper-mister-marko-take-the-whole-block.mp3",
+      "green-goblin/story-11-you-have-cost-me-a-very-expensive-man.mp3",
+      "green-goblin/story-12-i-gave-this-city-everything-i-had-it-gav.mp3",
+      "green-goblin/story-13-you-cannot-arrest-what-a-city-needs.mp3",
+      "green-goblin/story-14-kill-the-boy-and-i-will-let-you-keep-the.mp3",
+      "green-goblin/story-15-finish-each-other-and-save-me-the-troubl.mp3",
+      "green-goblin/story-16-stand-up-parker-i-did-not-build-you-to-l.mp3",
+      "green-goblin/story-17-this-city-i-made-it.mp3",
+      "green-goblin/story-18-oh-this-is-marvellous-do-that-again.mp3",
+      "green-goblin/story-19-there-it-is-the-part-where-you-fall.mp3"
+    ]
+  },
+  "SANDMAN": {
+    "idle": [
+      "sandman/idle-0-i-just-keep-coming-back.mp3",
+      "sandman/idle-1-you-cannot-hit-what-you-cannot-hold.mp3",
+      "sandman/idle-2-should-have-stayed-home.mp3",
+      "sandman/idle-3-i-have-got-all-night.mp3"
+    ],
+    "story": [
+      "sandman/story-0-i-am-not-here-for-you.mp3",
+      "sandman/story-1-then-move-the-avenue.mp3",
+      "sandman/story-2-they-said-they-could-put-me-back-just-on.mp3",
+      "sandman/story-3-i-am-not-your-dog.mp3",
+      "sandman/story-4-i-only-want-to-go-home.mp3",
+      "sandman/story-5-stop-hitting-my-head-that-is-the-only-pa.mp3",
+      "sandman/story-6-tell-her-i-tried.mp3",
+      "sandman/story-7-he-has-my-daughter-address-he-read-it-ou.mp3",
+      "sandman/story-8-go-go-and-get-him.mp3",
+      "sandman/story-9-you-cannot-hit-what-does-not-stay-hit.mp3",
+      "sandman/story-10-just-stop-i-do-not-want-this.mp3"
+    ]
+  },
+  "SYMBIOTE PETER": {
+    "idle": [
+      "symbiote-peter/idle-0-i-taught-you-this.mp3",
+      "symbiote-peter/idle-1-you-are-pulling-your-punches-i-am-not.mp3",
+      "symbiote-peter/idle-2-he-is-still-in-here-he-is-just-quiet.mp3",
+      "symbiote-peter/idle-3-do-not-look-at-me-like-that-kid.mp3"
+    ],
+    "story": [
+      "symbiote-peter/story-0-there-he-is-the-kid-who-was-always-going.mp3",
+      "symbiote-peter/story-1-i-am-all-of-him-with-the-flinching-taken.mp3",
+      "symbiote-peter/story-2-you-are-still-holding-back-he-would-not-.mp3",
+      "symbiote-peter/story-3-you-pulled-some-of-it-off-good-now-do-it.mp3",
+      "symbiote-peter/story-4-no-more-pretending-to-be-him-he-was-slow.mp3",
+      "symbiote-peter/story-5-the-sound-turn-it-off-turn-it-off.mp3",
+      "symbiote-peter/story-6-it-hurts-miles-it-hurts.mp3",
+      "symbiote-peter/story-7-he-is-mine.mp3",
+      "symbiote-peter/story-8-do-not-make-me-choose-kid-you-will-not-l.mp3",
+      "symbiote-peter/story-9-miles-do-not-stop.mp3",
+      "symbiote-peter/story-10-miles-the-sound-use-the-sound.mp3",
+      "symbiote-peter/story-11-you-do-not-get-to-give-me-anything.mp3",
+      "symbiote-peter/story-12-you-keep-saving-me-stop.mp3",
+      "symbiote-peter/story-13-i-can-feel-it-letting-go-keep-going.mp3",
+      "symbiote-peter/story-14-miles-did-i-what-did-i-do.mp3",
+      "symbiote-peter/story-15-hit-me-properly-or-get-out-of-my-city.mp3",
+      "symbiote-peter/story-16-do-not-make-me-finish-this-kid.mp3"
+    ]
+  },
+  "YURI": {
+    "story": [
+      "yuri/story-0-spider-man-it-is-watanabe-the-radio-is-a.mp3",
+      "yuri/story-1-i-did-not-say-missed-i-said-busy.mp3",
+      "yuri/story-2-one-call-cleared-the-precinct-is-pretend.mp3",
+      "yuri/story-3-another-one-same-four-blocks-whoever-thi.mp3",
+      "yuri/story-4-roof-alarm-on-the-vanderbilt-tower-she-t.mp3",
+      "yuri/story-5-the-grid-is-dropping-whole-blocks-the-ut.mp3",
+      "yuri/story-6-crews-are-working-the-dark-go-and-make-t.mp3",
+      "yuri/story-7-three-blocks-black-and-every-alarm-insid.mp3",
+      "yuri/story-8-stay-off-the-wires-i-am-not-writing-that.mp3",
+      "yuri/story-9-he-is-standing-on-top-of-the-substation-.mp3",
+      "yuri/story-10-quiet-shift-do-not-jinx-it.mp3",
+      "yuri/story-11-four-people-taken-off-the-street-this-we.mp3",
+      "yuri/story-12-that-it-was-big-it-was-black-and-it-knew.mp3",
+      "yuri/story-13-whatever-you-are-about-to-do-do-it-somew.mp3",
+      "yuri/story-14-a-corner-store-was-robbed-last-night-wit.mp3",
+      "yuri/story-15-that-is-the-question-i-am-not-allowed-to.mp3",
+      "yuri/story-16-air-traffic-has-a-return-they-cannot-exp.mp3",
+      "yuri/story-17-whatever-is-up-there-has-already-put-two.mp3",
+      "yuri/story-18-six-blocks-damaged-forty-injured-nobody-.mp3",
+      "yuri/story-19-three-building-sites-hit-nothing-taken-t.mp3",
+      "yuri/story-20-that-is-what-i-am-asking-you.mp3",
+      "yuri/story-21-whatever-came-through-that-wall-did-not-.mp3",
+      "yuri/story-22-he-is-standing-in-the-middle-of-the-aven.mp3",
+      "yuri/story-23-quiet-day-enjoy-it-and-keep-an-eye-on-th.mp3",
+      "yuri/story-24-we-have-reports-of-a-spider-man-breaking.mp3",
+      "yuri/story-25-every-substation-in-the-borough-came-onl.mp3",
+      "yuri/story-26-spider-man-disengage-that-is-not-a-reque.mp3",
+      "yuri/story-27-dillon-is-in-a-cell-that-costs-more-than.mp3",
+      "yuri/story-28-six-of-them-in-one-night-and-the-city-is.mp3",
+      "yuri/story-29-every-one-of-them-is-out-of-custody-on-t.mp3",
+      "yuri/story-30-i-have-nothing-left-to-send-you.mp3",
+      "yuri/story-31-radio-is-calm-that-is-either-good-news-o.mp3",
+      "yuri/story-32-spider-man-whatever-this-thing-is-my-off.mp3",
+      "yuri/story-33-every-unit-in-the-borough-is-out-tonight.mp3",
+      "yuri/story-34-robbery-in-progress-nearest-unit-is-nine.mp3",
+      "yuri/story-35-assault-two-blocks-north-of-you-go.mp3",
+      "yuri/story-36-shots-called-in-no-injuries-yet-and-i-wo.mp3",
+      "yuri/story-37-they-are-hitting-a-shop-front-in-the-ope.mp3",
+      "yuri/story-38-same-crew-third-call-tonight-somebody-is.mp3",
+      "yuri/story-39-break-in-with-a-crowd-watching-make-it-q.mp3"
+    ]
+  },
+  "MJ": {
+    "story": [
+      "mj/story-0-the-bugle-wants-a-photograph-of-you-work.mp3",
+      "mj/story-1-as-opposed-to-somebody-who-slept-on-a-ro.mp3",
+      "mj/story-2-nine-burglaries-this-week-no-forced-door.mp3",
+      "mj/story-3-the-bugle-is-going-with-ghost-i-am-going.mp3",
+      "mj/story-4-osborn-it-is-always-osborn-eventually.mp3",
+      "mj/story-5-then-she-left-it-on-purpose-people-that-.mp3",
+      "mj/story-6-it-is-a-key-card-osborn-security-issued-.mp3",
+      "mj/story-7-which-means-somebody-wants-you-looking-a.mp3",
+      "mj/story-8-she-is-working-for-somebody-with-money-a.mp3",
+      "mj/story-9-eight-one-of-them-is-in-prison.mp3",
+      "mj/story-10-the-substations-are-not-failing-they-are.mp3",
+      "mj/story-11-following-a-man-maxwell-dillon-lineman-h.mp3",
+      "mj/story-12-the-lights-are-back-nobody-at-osborn-has.mp3",
+      "mj/story-13-so-there-is-no-paper-anywhere-with-his-n.mp3",
+      "mj/story-14-which-roof.mp3",
+      "mj/story-15-osborn-industries-filed-a-biohazard-inci.mp3",
+      "mj/story-16-serial-numbers-ground-off-but-the-casing.mp3",
+      "mj/story-17-norman-osborn-on-the-record-i-have-nothi.mp3",
+      "mj/story-18-he-walks-of-course-he-walks.mp3",
+      "mj/story-19-flint-marko-nine-years-for-a-robbery-he-.mp3",
+      "mj/story-20-marko-has-a-daughter-she-is-fourteen-he-.mp3",
+      "mj/story-21-the-quarry-lease-is-osborn-naturally.mp3",
+      "mj/story-22-define-wrong.mp3",
+      "mj/story-23-talk-to-him-not-as-spider-man-as-you.mp3",
+      "mj/story-24-and-peter.mp3",
+      "mj/story-25-whatever-is-wearing-him-knows-everything.mp3",
+      "mj/story-26-if-you-get-him-down-keep-him-down-it-hat.mp3",
+      "mj/story-27-then-it-split.mp3",
+      "mj/story-28-it-is-filed-front-page-morning-edition-h.mp3",
+      "mj/story-29-one-key-card-one-thief-with-a-conscience.mp3",
+      "mj/story-30-osborn-get-some-sleep-we-start-on-him-to.mp3",
+      "mj/story-31-it-is-still-out-there-and-it-still-says-.mp3",
+      "mj/story-32-the-story-is-real-it-is-just-not-printab.mp3",
+      "mj/story-33-that-is-the-part-nobody-writes-down.mp3",
+      "mj/story-34-you-did-that.mp3",
+      "mj/story-35-whoever-is-paying-for-this-has-stopped-p.mp3",
+      "mj/story-36-i-have-a-source-inside-the-contracting-a.mp3",
+      "mj/story-37-legal-killed-the-draft-that-is-twice.mp3",
+      "mj/story-38-now-i-write-a-better-one.mp3",
+      "mj/story-39-my-source-has-stopped-answering-can-you-.mp3",
+      "mj/story-40-she-is-fine-she-moved-and-she-left-a-box.mp3",
+      "mj/story-41-it-runs-whatever-else-happens-tonight-th.mp3",
+      "mj/story-42-you-are-on-a-roof-again-are-you-not.mp3",
+      "mj/story-43-everything-i-file-about-osborn-comes-bac.mp3",
+      "mj/story-44-miles-you-are-not-responsible-for-what-i.mp3",
+      "mj/story-45-you-do-not-but-say-it-back-to-me-anyway.mp3"
+    ]
+  },
+  "MAY": {
+    "story": [
+      "may/story-0-the-shelter-is-full-again-tonight-come-b.mp3",
+      "may/story-1-you-look-tired.mp3",
+      "may/story-2-then-eat-something-before-you-go-back-ou.mp3",
+      "may/story-3-we-ran-the-shelter-on-candles-for-two-ni.mp3",
+      "may/story-4-sit-down-for-ten-minutes-the-city-will-s.mp3",
+      "may/story-5-twenty-new-beds-arrived-and-there-is-no-.mp3",
+      "may/story-6-there-is-sand-in-the-soup-and-sand-in-th.mp3",
+      "may/story-7-he-did-not-come-to-dinner-he-always-come.mp3",
+      "may/story-8-then-eat-first-it-can-wait-an-hour.mp3",
+      "may/story-9-the-shelter-is-full-and-the-doors-are-st.mp3",
+      "may/story-10-we-took-in-eleven-people-last-night-and-.mp3",
+      "may/story-11-a-man-came-in-with-a-burn-nobody-could-e.mp3",
+      "may/story-12-the-kind-that-runs-in-a-straight-line.mp3",
+      "may/story-13-the-boiler-has-died-of-course-it-has.mp3",
+      "may/story-14-you-can-look-at-it-after-you-have-slept.mp3",
+      "may/story-15-somebody-paid-the-whole-heating-bill-ano.mp3",
+      "may/story-16-i-already-have-people-were-cold.mp3",
+      "may/story-17-the-doors-stayed-open-all-winter-whateve.mp3",
+      "may/story-18-whoever-is-listening-there-is-soup-at-th.mp3",
+      "may/story-19-two-of-the-beds-tonight-are-people-who-w.mp3",
+      "may/story-20-the-doors-here-stay-open-whoever-needs-t.mp3"
+    ]
+  },
+  "JAMESON": {
+    "story": [
+      "jameson/story-0-the-lights-go-out-and-the-wall-crawler-a.mp3",
+      "jameson/story-1-two-masked-men-on-a-substation-roof-two-.mp3",
+      "jameson/story-2-somebody-is-arming-our-streets-and-our-m.mp3",
+      "jameson/story-3-where-was-spider-man-late-where-is-norma.mp3",
+      "jameson/story-4-a-man-made-of-dirt-walks-down-lexington-.mp3",
+      "jameson/story-5-norman-osborn-is-a-great-man-and-i-will-.mp3",
+      "jameson/story-6-get-the-camera-up-get-the-camera-up.mp3",
+      "jameson/story-7-norman-osborn-a-glider-and-forty-people-.mp3",
+      "jameson/story-8-they-are-back-all-of-them-i-told-this-ci.mp3",
+      "jameson/story-9-just-facts-a-masked-man-is-on-our-roofto.mp3",
+      "jameson/story-10-the-grid-fails-and-the-wall-crawler-is-t.mp3",
+      "jameson/story-11-norman-osborn-rebuilt-six-blocks-out-of-.mp3",
+      "jameson/story-12-spider-man-attacked-a-man-in-broad-dayli.mp3"
+    ]
+  },
+  "DANIKA": {
+    "story": [
+      "danika/story-0-okay-spider-watchers-something-is-out-th.mp3",
+      "danika/story-1-three-separate-people-filmed-something-w.mp3",
+      "danika/story-2-is-it-strange-that-the-city-feels-calm-a.mp3",
+      "danika/story-3-i-am-broadcasting-from-a-roof-and-i-regr.mp3",
+      "danika/story-4-new-segment-is-the-man-in-the-mask-actua.mp3",
+      "danika/story-5-update-he-took-a-bus-door-off-with-his-h.mp3",
+      "danika/story-6-somebody-sent-me-a-very-polite-legal-let.mp3",
+      "danika/story-7-i-am-not-taking-the-segment-down-and-i-w.mp3",
+      "danika/story-8-fifty-thousand-of-you-now-be-kind-to-eac.mp3",
+      "danika/story-9-day-forty-of-a-man-swinging-past-my-wind.mp3",
+      "danika/story-10-people-keep-sending-me-clips-of-somethin.mp3",
+      "danika/story-11-the-friendly-one-has-not-been-friendly-l.mp3"
+    ]
+  },
+  "GANKE": {
+    "story": [
+      "ganke/story-0-the-camera-on-your-fire-escape-just-went.mp3",
+      "ganke/story-1-the-fill-under-all-three-sites-came-from.mp3",
+      "ganke/story-2-his-suit-telemetry-is-off-the-scale-stre.mp3",
+      "ganke/story-3-you-are-out-there-alone-and-i-hate-every.mp3",
+      "ganke/story-4-it-found-a-new-host-in-twenty-minutes-tw.mp3",
+      "ganke/story-5-six-hostiles-six-i-have-officially-run-o.mp3",
+      "ganke/story-6-you-have-been-out-six-nights-running-i-a.mp3",
+      "ganke/story-7-i-absolutely-would.mp3",
+      "ganke/story-8-for-the-record-i-have-now-done-more-home.mp3",
+      "ganke/story-9-the-quarry-paperwork-runs-through-four-s.mp3"
+    ]
+  },
+  "RIO": {
+    "story": [
+      "rio/story-0-miles-whatever-this-is-you-do-not-carry-.mp3",
+      "rio/story-1-come-home-tonight-miles.mp3",
+      "rio/story-2-the-block-association-wants-a-mural-i-sa.mp3",
+      "rio/story-3-mrs-ortega-asked-after-you-by-name-your-.mp3",
+      "rio/story-4-she-thinks-it-is-wonderful-breathe.mp3",
+      "rio/story-5-whatever-this-city-calls-you-you-come-ho.mp3",
+      "rio/story-6-miles-dinner-is-at-seven-and-the-city-ca.mp3"
+    ]
+  }
+}

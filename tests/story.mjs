@@ -10,11 +10,14 @@
  * gives you, is silently never spoken. Nothing crashes. The scene simply does
  * not happen, and only a test notices.
  */
-import { bundle } from './_bundle.mjs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
+import { join } from 'node:path';
+import { bundle, ROOT } from './_bundle.mjs';
 
 const {
   BOOKS,
   requiredHeroFor,
+  VOICE_LINES,
   CHAPTER_BEATS,
   AMBIENT,
   DISPATCH,
@@ -30,6 +33,7 @@ const {
 } = await bundle(
   [
     ['{ BOOKS, requiredHeroFor }', 'src/game/GameMode'],
+    ['{ VOICE_LINES }', 'src/audio/Voice'],
     [
       '{ CHAPTER_BEATS, AMBIENT, DISPATCH, TURN, PRESSURE, BOOK_ENDINGS, SIEGE, THREADS, STORY_LINES, StoryDirector, speakerColor, speakerName }',
       'src/game/Story',
@@ -608,8 +612,75 @@ console.log('[13] director');
   }
 }
 
-// --- 14. hero-locked chapters --------------------------------------------
-console.log('[14] hero-locked chapters');
+// --- 14. the recorded voice pack ------------------------------------------
+console.log('[14] recorded voice pack');
+{
+  // The pack is optional — the game falls back to speech synthesis without it
+  // — so its absence is not a failure. Its *presence* is what needs checking,
+  // because every way this can be wrong is silent. A manifest entry pointing
+  // at a file that is not there, or a bank the manifest has never heard of,
+  // does not throw: that line quietly goes back to sounding synthesised while
+  // the ones around it do not, which is far more jarring than a pack that was
+  // never installed.
+  const manifestPath = join(ROOT, 'public', 'voice', 'manifest.json');
+  if (!existsSync(manifestPath)) {
+    console.log('  skipped — no pack installed (the game falls back to synthesis)');
+  } else {
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+    let missing = 0;
+    let empty = 0;
+    let clips = 0;
+    let bytes = 0;
+    const uncovered = [];
+
+    for (const [speaker, events] of Object.entries(VOICE_LINES)) {
+      for (const [event, lines] of Object.entries(events)) {
+        const paths = manifest[speaker]?.[event];
+        if (!paths) {
+          uncovered.push(`${speaker}.${event}`);
+          continue;
+        }
+        // Indexed by position, so a short list does not mean "some lines have
+        // no recording" — it means every line past the end plays the wrong
+        // recording, because VoiceClips wraps with a modulo.
+        if (paths.length !== lines.length) {
+          fail(`${speaker}.${event}: ${paths.length} clips for ${lines.length} lines — indices will wrap`);
+        }
+        for (const relative of paths) {
+          const file = join(ROOT, 'public', 'voice', relative);
+          if (!existsSync(file)) {
+            if (missing < 5) fail(`${speaker}.${event}: ${relative} is in the manifest but not on disk`);
+            missing++;
+            continue;
+          }
+          const size = statSync(file).size;
+          // A few hundred bytes is a header and nothing else — the shape an
+          // interrupted or refused render leaves behind.
+          if (size < 1024) {
+            if (empty < 5) fail(`${relative} is only ${size} bytes`);
+            empty++;
+          }
+          clips++;
+          bytes += size;
+        }
+      }
+    }
+
+    if (missing > 5) fail(`...and ${missing - 5} more missing clips`);
+    if (empty > 5) fail(`...and ${empty - 5} more truncated clips`);
+    // A partial pack is a legitimate state to be in mid-render, but it should
+    // be said out loud rather than discovered while playing.
+    if (uncovered.length) {
+      console.log(`  note — ${uncovered.length} bank(s) not in the manifest: ${uncovered.slice(0, 3).join(', ')}`);
+    }
+    if (!missing && !empty) {
+      ok(`${clips} clips, ${(bytes / 1024 / 1024).toFixed(1)} MB, every manifest entry resolves`);
+    }
+  }
+}
+
+// --- 15. hero-locked chapters --------------------------------------------
+console.log('[15] hero-locked chapters');
 {
   // A chapter fielding a villain who *is* one of the heroes forces the other
   // one and cancels the partner. Dialogue written against HERO resolves to

@@ -1,4 +1,17 @@
-# Recorded voice lines (optional)
+# Recorded voice lines
+
+**A pack is already installed here.** It was rendered with
+`npm run voices`, which casts each speaker to a distinct Microsoft neural voice
+— free, unmetered, and regenerable at any time. Everything below is for
+replacing it: with ElevenLabs, with your own recordings, or with actors.
+
+To re-render after editing a line in the game, run `npm run voices` again; it
+only renders what is missing. To start over, delete the speaker's folder, or
+pass `--force`.
+
+---
+
+## Rolling your own
 
 The game speaks every bark through the browser's built-in speech synthesiser.
 That works offline with no assets, and each character gets its own installed

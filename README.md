@@ -3,10 +3,13 @@
 A 3D web-swinging game prototype. Vite + vanilla TypeScript + Three.js, with a
 custom fixed-step Verlet physics loop instead of a rigid-body engine.
 
-**Everything is procedural.** There are no image, model, audio or font assets —
-building facades, road surfaces, spider emblems and the characters themselves
-are generated from `<canvas>` 2D contexts and Three.js primitives at runtime.
-The game works with no network access after `npm install`.
+**Everything you can see is procedural.** There are no image, model or font
+assets — building facades, road surfaces, spider emblems and the characters
+themselves are generated from `<canvas>` 2D contexts and Three.js primitives at
+runtime, and every sound effect is synthesised in WebAudio. The one exception is
+the spoken dialogue in `public/voice/`, which is generated too, just ahead of
+time rather than at load: see [Voices](#voices). The game works with no network
+access after `npm install`.
 
 ## Running it
 
@@ -70,7 +73,7 @@ npm test rematch        # just the suites whose filename matches
 | `static-checks.cjs` | Source-text invariants across every `.ts` file: DOM ids the HUD binds to, config keys that must exist, patterns that have regressed before. |
 | `campaign.mjs` | Walks all 39 chapters. No chapter may be skipped, stall, or complete early. Includes the surplus-crime and legacy-save-migration cases. |
 | `books.mjs` | Story shape: every book ends on a boss, difficulty climbs, the last book fields everyone. |
-| `story.mjs` | Chapter dialogue: every beat reaches the player, none is written for a villain or partner who is not in the scene, and nothing addresses Miles on a night you could be Peter. |
+| `story.mjs` | Chapter dialogue: every beat reaches the player, none is written for a villain or partner who is not in the scene, and nothing addresses Miles on a night you could be Peter. Also checks the voice pack, when one is installed: a manifest entry with no file behind it drops that one line back to sounding synthesised while the lines around it do not. |
 | `rematch.mjs` | A chapter can only ever field the villain it named — the boss-marathon regression. |
 | `numeric.mjs` | The day/night clock keeps running past one cycle, and the world never goes pitch dark. |
 | `joints.mjs` | Villain limb geometry sits exactly where it was authored. |
@@ -144,7 +147,7 @@ src/
 │   ├── RimLight.ts          Character rim lighting
 │   └── SpiderEmblem.ts      Shared canvas-drawn spider decal
 ├── audio/
-│   ├── Voice.ts             Contextual barks via speechSynthesis
+│   ├── Voice.ts             Barks, story lines, per-speaker delivery
 │   ├── VoiceClips.ts        Pre-rendered clip table
 │   └── Sfx.ts               WebAudio-synthesised effects
 ├── fx/
@@ -158,21 +161,52 @@ src/
 tests/                       Verification suites (see Tests above)
 scripts/
 ├── fetch-osm.py             Regenerates public/city/osm-city.json
-└── make-voices.mjs          Regenerates public/voice clips
+├── make-voices-neural.mjs   Renders the voice pack (Edge neural / ElevenLabs)
+├── edge-render.py           The edge-tts half of the above
+└── make-voices.mjs          Older offline renderer, via Piper
 ```
 
-### Voice barks
+### Voices
 
-`Voice.ts` speaks contextual one-liners through the browser's built-in
-`speechSynthesis` — no audio files, so the game stays asset-free. Peter and
-Miles get different pitch and rate; villains are pitched down.
+Every one of the 584 spoken lines is a real recording, in `public/voice/`,
+rendered from Microsoft's neural voices with a distinct voice cast for each of
+the fifteen speakers. `VoiceClips` finds the pack at boot and plays it;
+`speechSynthesis` remains the fallback for anyone without it.
 
-Every line is original writing. Lines are also mirrored to an on-screen
-subtitle, so the system degrades cleanly when speech synthesis is unavailable
-or muted (`M`).
+That fallback is the reason the pack exists. `Voice.ts` does what it can with
+the browser synthesiser — a different installed voice per character, per-speaker
+pitch and rate, per-line jitter, a procedural sub-bass bed under the monsters —
+but no amount of shaping stops a synthesiser sounding synthesised, and with
+fifteen speakers the sameness is what you notice first.
 
-Barks are driven from state transitions in `Game.updateBarks`, throttled by a
-global cooldown plus a per-event cooldown, and never repeat the previous line.
+```bash
+npm run voices                                        # render the pack
+node scripts/make-voices-neural.mjs --list            # who plays whom
+node scripts/make-voices-neural.mjs --only VENOM      # re-cut one character
+node scripts/make-voices-neural.mjs --engine eleven --dry-run
+```
+
+Rendering is resumable: a clip already on disk is skipped, so adding a line to
+the game costs one render rather than 584, and an interrupted run is finished by
+running it again. Clips are written to a temporary name and moved into place, so
+an interruption never leaves a truncated file that the next run skips as done.
+
+The casting is character work, not correction. Jameson is fast because Jameson
+is fast; May is slow because she is not in a hurry; Symbiote Peter is cast as
+*Peter* and then dropped a fifth and slowed, because the whole point of that
+fight is that the line reads as Peter until you notice what it is saying.
+
+`--engine eleven` renders through ElevenLabs instead, which is better and is
+metered — the full pack is 22,285 characters, so more than two months of the
+free tier. It needs `ELEVENLABS_API_KEY`; the cast is taken from whatever voices
+your account actually has, matched by name the same way `Voice.ts` divides up
+the browser's installed voices. A key scoped to text-to-speech only cannot list
+voices, and the script says so and tells you what to do about it.
+
+Barks themselves are driven from state transitions in `Game.updateBarks`,
+throttled by a global cooldown plus a per-event cooldown, and never repeat the
+previous line. Every line is mirrored to an on-screen subtitle, so the whole
+system degrades cleanly when audio is unavailable or muted (`M`).
 
 ### The story layer
 

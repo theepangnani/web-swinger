@@ -5,3 +5,9 @@
 # Generated map data: one enormous line, never worth diffing.
 public/city/osm-city.json -diff linguist-generated
 package-lock.json -diff linguist-generated
+
+# Audio is binary. `text=auto` above would normally detect this, but a
+# corrupted clip is a silent failure that only shows up as a click on play.
+*.mp3 binary
+*.wav binary
+*.ogg binary
