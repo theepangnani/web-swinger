@@ -352,8 +352,12 @@ export class Voice {
     if (!this.enabled) return;
     this.onLine?.(speaker);
     const profile = PROFILES[speaker] ?? DEFAULT_PROFILE;
-    const played = clip >= 0 && this.clips.play(speaker, 'story', clip, this.volume * profile.gain);
-    if (!played && this.supported) this.speak(text, speaker);
+    // The fallback is passed in as well as checked, because a clip can fail
+    // asynchronously — the synchronous answer is only "a clip was dispatched".
+    const speak = this.fallbackFor(text, speaker);
+    const played =
+      clip >= 0 && this.clips.play(speaker, 'story', clip, this.volume * profile.gain, speak);
+    if (!played) speak();
   }
 
   /** Suppresses barks for `seconds`. Scripted scenes hold the floor. */
@@ -375,6 +379,11 @@ export class Voice {
   stop(): void {
     if (this.supported) window.speechSynthesis.cancel();
     this.clips.stop();
+    // Abandons any line still in flight. A clip that fails after this point
+    // would otherwise reach its fallback and start speaking into a game that
+    // has just been paused or muted; the fallback checks this against the line
+    // it was created for, and no line is ever the empty string.
+    this.lastText = '';
   }
 
   dispose(): void {
@@ -411,10 +420,31 @@ export class Voice {
       this.onLine?.(speaker);
       // A recorded clip always wins; synthesis is the fallback, not a layer.
       const profile = PROFILES[speaker] ?? DEFAULT_PROFILE;
-      const played = this.clips.play(speaker, event, index, this.volume * profile.gain);
-      if (!played && this.supported) this.speak(text, speaker);
+      const speak = this.fallbackFor(text, speaker);
+      const played = this.clips.play(speaker, event, index, this.volume * profile.gain, speak);
+      if (!played) speak();
     }
     return true;
+  }
+
+  /**
+   * The synthesis fallback for one line.
+   *
+   * Two things it has to get right, both of which only matter because a clip
+   * can fail *after* the call that dispatched it has returned:
+   *
+   *  - Stop the clip channel first. Falling back does not otherwise silence a
+   *    clip that is still playing, and the synthesiser would talk over it.
+   *  - Say nothing if this line has been overtaken. `speak` cancels whatever
+   *    the synthesiser is doing, so a late failure from an abandoned line
+   *    would cut off the line that replaced it and read out the old one.
+   */
+  private fallbackFor(text: string, speaker: string): () => void {
+    return () => {
+      if (this.lastText !== text) return;
+      this.clips.stop();
+      if (this.supported) this.speak(text, speaker);
+    };
   }
 
   /** Avoids repeating the line that played most recently. */

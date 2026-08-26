@@ -666,6 +666,21 @@ console.log('[14] recorded voice pack');
       }
     }
 
+    // Filenames are built from the line text, truncated. Two lines that agree
+    // for the first forty characters would collide, and the loser would play
+    // the winner's recording under its own subtitle — right voice, right
+    // moment, wrong words, and nothing anywhere would report it.
+    const owner = new Map();
+    for (const [speaker, events] of Object.entries(manifest)) {
+      for (const [event, paths] of Object.entries(events)) {
+        paths.forEach((relative, i) => {
+          const at = `${speaker}.${event}[${i}]`;
+          if (owner.has(relative)) fail(`${at} and ${owner.get(relative)} are the same file: ${relative}`);
+          else owner.set(relative, at);
+        });
+      }
+    }
+
     if (missing > 5) fail(`...and ${missing - 5} more missing clips`);
     if (empty > 5) fail(`...and ${empty - 5} more truncated clips`);
     // A partial pack is a legitimate state to be in mid-render, but it should

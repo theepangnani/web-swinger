@@ -64,7 +64,7 @@ context, so most of the game is reachable from Node; the parts that genuinely
 need WebGL get a stub from the test.
 
 ```bash
-npm test                # all seven, in parallel
+npm test                # all eight, in parallel
 npm test rematch        # just the suites whose filename matches
 ```
 
@@ -74,6 +74,7 @@ npm test rematch        # just the suites whose filename matches
 | `campaign.mjs` | Walks all 39 chapters. No chapter may be skipped, stall, or complete early. Includes the surplus-crime and legacy-save-migration cases. |
 | `books.mjs` | Story shape: every book ends on a boss, difficulty climbs, the last book fields everyone. |
 | `story.mjs` | Chapter dialogue: every beat reaches the player, none is written for a villain or partner who is not in the scene, and nothing addresses Miles on a night you could be Peter. Also checks the voice pack, when one is installed: a manifest entry with no file behind it drops that one line back to sounding synthesised while the lines around it do not. |
+| `voice.mjs` | The clip layer, against a stubbed `Audio`: a clip that fails *after* dispatch still reaches the synthesis fallback, a known-bad clip stops being retried, and the element cache stays bounded. |
 | `rematch.mjs` | A chapter can only ever field the villain it named — the boss-marathon regression. |
 | `numeric.mjs` | The day/night clock keeps running past one cycle, and the world never goes pitch dark. |
 | `joints.mjs` | Villain limb geometry sits exactly where it was authored. |

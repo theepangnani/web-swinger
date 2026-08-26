@@ -19,6 +19,7 @@ const SUITES = [
   ['campaign.mjs', 'story progression: no chapter skipped, none unclearable'],
   ['books.mjs', 'story shape: every book ends on a boss, difficulty climbs'],
   ['story.mjs', 'chapter dialogue: every beat reaches the player, none is orphaned'],
+  ['voice.mjs', 'recorded clips: a clip that fails still reaches the fallback'],
   ['rematch.mjs', 'a chapter can only ever field the villain it named'],
   ['numeric.mjs', 'day/night clock keeps running, and never goes pitch dark'],
   ['joints.mjs', 'villain limbs sit exactly where they were authored'],
