@@ -33,6 +33,14 @@ import {
   type StoryEvent,
 } from './game/GameMode';
 import { SaveGame } from './game/SaveGame';
+import {
+  AMBIENT,
+  CHAPTER_BEATS,
+  DISPATCH,
+  StoryDirector,
+  speakerColor,
+  speakerName,
+} from './game/Story';
 import { SUITS as SUIT_CACHE, unlockedSuits } from './game/Suits';
 import { SpeedLines } from './fx/SpeedLines';
 import { Beacons, type BeaconKind } from './fx/Beacons';
@@ -90,6 +98,8 @@ export class Game {
   private readonly settingsPanel = new SettingsPanel(this.settings);
   private readonly voice = new Voice();
   private readonly sfx = new Sfx();
+  /** Paces the campaign's written dialogue out through the voice and HUD. */
+  private readonly story = new StoryDirector();
   private readonly villainRng = mulberry32(CONFIG.city.seed ^ 0x9e3779b9);
 
   private accumulator = 0;
@@ -116,6 +126,14 @@ export class Game {
   private villainsSurfaced = 0;
   private crimesCleared = 0;
   private campaign = new Campaign('STORY');
+  /** Seconds of calm remaining before the radio fills it. */
+  private ambientTimer = CONFIG.story.ambientInterval;
+  /** Rotates the radio rather than rolling dice, so nothing repeats early. */
+  private ambientCursor = 0;
+  private dispatchCursor = 0;
+  private dispatchCooldown = 0;
+  /** True once the current chapter's halfway line has played. */
+  private midBeatPlayed = false;
   /**
    * How many times each villain has been beaten. A count, not a flag: Book
    * Five re-fights earlier villains, and a set would mark those chapters
@@ -295,6 +313,21 @@ export class Game {
       const bed = VOICE_BEDS[speaker];
       if (bed) this.sfx.play(bed, 0.9);
     };
+    // Scripted dialogue goes out through the same subtitle and speech path as
+    // a bark, but with the speaker's own name and colour, and it holds the
+    // bark channel for as long as it is on screen.
+    this.story.setHero(this.player.heroId);
+    this.story.onLine = (line): void => {
+      const seconds = CONFIG.voice.subtitleSeconds + CONFIG.story.lineTail;
+      this.hud.showSubtitle(speakerName(line.speaker), line.text, speakerColor(line.speaker));
+      this.voice.line(line.speaker, line.text, line.clip, seconds);
+    };
+    // Chapter cards ride the same queue so they land between the chapter that
+    // just closed and the one about to open, rather than being painted over.
+    this.story.onCard = (card): void => {
+      this.hud.showSubtitle(card.label, card.title, '#ffb703');
+      this.sfx.play('alert', 0.35);
+    };
     // Optional recorded-clip pack; absent by default. See public/voice/.
     void this.voice.loadClips().then((found) => {
       if (found) this.hud.showSubtitle('VOICE', 'Recorded voice pack loaded.', '#52fa7c');
@@ -332,6 +365,7 @@ export class Game {
     this.thugs.onTelegraph = (): void => this.sfx.play('alert', 0.35);
     this.enemies.onDefeated = (villain): void => {
       this.voice.say('villain_down', true);
+      this.playBeat('down', villain.kind);
       this.awardXp(CONFIG.progression.xp.villain);
       this.recordDefeat(villain.kind);
       this.advanceCampaign();
@@ -341,6 +375,7 @@ export class Game {
       this.awardXp(CONFIG.progression.xp.thug);
       this.player.addFocus(CONFIG.focus.perHit * this.progression.focusMultiplier);
     };
+    this.thugs.onCrimeStarted = (): void => this.callInCrime();
     this.thugs.onCrimeResolved = (): void => {
       this.awardXp(CONFIG.progression.xp.crime);
       this.voice.say('villain_down', true);
@@ -348,6 +383,7 @@ export class Game {
       this.crimesSinceVillain++;
       this.logStoryEvent(CRIME);
       this.advanceCampaign();
+      this.playMidBeat();
       this.markDirty();
     };
     // The partner speaks in their own hero's voice, not the player's.
@@ -611,6 +647,8 @@ export class Game {
     // real frame dt, not simDt, so hitstop doesn't stall the sky.
     this.dayNight.update(dt, this.player.pos);
     this.voice.update(dt);
+    this.story.update(dt);
+    this.updateAmbient(dt);
     this.updateBarks(dt);
     this.updateBeacons(dt);
     this.updateMarkers();
@@ -817,6 +855,7 @@ export class Game {
         // Say the line in the outgoing hero's voice, then hand over.
         this.voice.say('swap', true);
         this.voice.setHero(hero.id);
+        this.story.setHero(hero.id);
         // With a partner in play, swapping trades places: you take the one you
         // were not controlling and they pick up the one you dropped. Health
         // carries across, or tapping Tab would be a free heal.
@@ -1071,7 +1110,15 @@ export class Game {
   }
 
   private advanceCampaign(): void {
-    if (this.campaign.replay(this.storyLog)) this.enterChapter();
+    // Captured before the replay, because the replay is what makes it the
+    // *previous* chapter — and it is the previous chapter that gets the last
+    // word. The director queues, so its closing lines are heard in full
+    // before the next chapter's opening ones start.
+    const leaving = this.campaign.isStory ? this.campaign.current.title : null;
+    if (this.campaign.replay(this.storyLog)) {
+      if (leaving) this.story.play(CHAPTER_BEATS[leaving]?.close);
+      this.enterChapter();
+    }
 
     // Every book closed: the city stops being a script and starts being a
     // siege. Waves of villains, each tier tougher than the last.
@@ -1159,10 +1206,93 @@ export class Game {
         ? ' He is the size of the block — hit the head, nothing lower holds together.'
         : '';
     this.hud.showSubtitle('ALERT', `${villain.name} has surfaced in the city.${note}`, '#9440bc');
-    this.voice.taunt(villain.kind);
+    // A chapter that wrote this villain an entrance gets the entrance. Only
+    // fall back to a generic taunt when it did not — which is every villain
+    // in free roam and in the post-game siege.
+    if (!this.playBeat('meet', villain.kind)) this.voice.taunt(villain.kind);
     // A villain who *is* one of the heroes decides who you play. Applied here
     // rather than only from chapter data, so it holds in free roam too.
     this.enforceHeroLock();
+  }
+
+  // ------------------------------------------------------------ story beats
+
+  /**
+   * Plays a chapter's written line for a villain arriving or going down.
+   *
+   * Returns whether this chapter had anything written for this villain, which
+   * is what lets the caller fall back to a generic taunt in free roam and in
+   * the post-game, where there is no chapter to have written one.
+   */
+  private playBeat(kind: 'meet' | 'down', villain: VillainKind): boolean {
+    if (!CONFIG.story.enabled || !this.campaign.isStory) return false;
+    const beats = CHAPTER_BEATS[this.campaign.current.title];
+    return this.story.play(beats?.[kind]?.[villain]);
+  }
+
+  /**
+   * The halfway line, once per chapter.
+   *
+   * Halfway is measured against what this chapter asked for rather than a
+   * fixed count, so a two-crime chapter hears it after one and a three-crime
+   * chapter after two. A chapter with no street work has nothing to be halfway
+   * through, and a one-crime chapter would fire it and its closing line back
+   * to back, so both are skipped.
+   */
+  private playMidBeat(): void {
+    if (!CONFIG.story.enabled || this.midBeatPlayed || !this.campaign.isStory) return;
+    const chapter = this.campaign.current;
+    if (chapter.crimes < 2) return;
+    if (this.campaign.crimesIntoChapter() < Math.ceil(chapter.crimes / 2)) return;
+    this.midBeatPlayed = true;
+    this.story.play(CHAPTER_BEATS[chapter.title]?.mid);
+  }
+
+  /**
+   * Calls a newly staged crime in over the police radio.
+   *
+   * Deliberately not every crime. Clearing crimes is the one thing the player
+   * is always doing, and narrating all of them would turn six lines into a
+   * loop the player learns by heart inside ten minutes.
+   */
+  private callInCrime(): void {
+    if (!CONFIG.story.enabled || this.dispatchCooldown > 0) return;
+    if (this.story.busy || this.enemies.remaining > 0) return;
+    if (Math.random() > CONFIG.story.dispatchChance) return;
+    this.dispatchCooldown = CONFIG.story.dispatchCooldown;
+    this.story.play(DISPATCH[this.dispatchCursor % DISPATCH.length], 'AMBIENT');
+    this.dispatchCursor++;
+  }
+
+  /**
+   * The radio, filling genuine calm.
+   *
+   * Only segments the current book has unlocked are eligible, so the city is
+   * never overheard discussing something the player has not reached. The
+   * cursor walks the list rather than rolling dice: with twenty entries, random
+   * selection repeats itself far sooner than it feels like it ought to.
+   */
+  private updateAmbient(dt: number): void {
+    this.dispatchCooldown = Math.max(0, this.dispatchCooldown - dt);
+    if (!CONFIG.story.enabled) return;
+
+    // Calm means calm — no scene running, and nothing in the city on fire.
+    if (this.story.busy || this.enemies.remaining > 0) {
+      this.ambientTimer = CONFIG.story.ambientInterval;
+      return;
+    }
+    this.ambientTimer -= dt;
+    if (this.ambientTimer > 0) return;
+    this.ambientTimer = CONFIG.story.ambientInterval;
+
+    // Free roam and the post-game have no book to gate on, and by then the
+    // player has seen everything, so the whole list is open.
+    const book = this.campaign.isStory && this.campaign.bookIndex >= 0 ? this.campaign.bookIndex : AMBIENT.length;
+    const eligible = AMBIENT.filter((entry) => entry.book <= book);
+    if (eligible.length === 0) return;
+    const entry = eligible[this.ambientCursor % eligible.length]!;
+    this.ambientCursor++;
+    this.story.play(entry.script, 'AMBIENT');
   }
 
   /**
@@ -1188,6 +1318,7 @@ export class Game {
 
     this.player.setHero(required);
     this.voice.setHero(required);
+    this.story.setHero(required);
     this.hud.showSubtitle(
       'SWITCH',
       `${HEROES[required].name} takes this one — that is not a partner any more.`,
@@ -1200,20 +1331,41 @@ export class Game {
    * Applies everything a chapter changes: the clock, the forced hero and the
    * partner. Called on every chapter transition and once when a save loads.
    */
-  private enterChapter(): void {
+  private enterChapter(announce = true): void {
     const chapter = this.campaign.current;
-    this.hud.showSubtitle(this.campaign.progressLabel, chapter.title, '#ffb703');
+    this.midBeatPlayed = false;
 
     // Pin the sky so a scene written for the dark happens in the dark, however
     // long the player took to get here. Free roam runs the clock freely.
     this.dayNight.pin(this.campaign.isStory ? (chapter.time ?? null) : null);
 
     // A chapter can require a specific hero — you cannot play Peter in the
-    // chapters where Peter is the thing you are fighting.
-    if (chapter.forceHero && this.player.heroId !== chapter.forceHero) {
+    // chapters where Peter is the thing you are fighting. Settled *before* the
+    // opening exchange is queued, because that exchange is written from the
+    // point of view of whoever is holding the mask: queue it first and Book
+    // Six opens with Peter delivering Miles' half of a conversation about
+    // Peter.
+    const swapped = Boolean(chapter.forceHero) && this.player.heroId !== chapter.forceHero;
+    if (chapter.forceHero && swapped) {
       this.player.setHero(chapter.forceHero);
       this.voice.setHero(chapter.forceHero);
-      this.hud.showSubtitle('STORY', `${HEROES[chapter.forceHero].name} takes this one.`, '#ffb703');
+      this.story.setHero(chapter.forceHero);
+    }
+
+    if (announce) {
+      // Card, then the reason the hero changed if it did, then the chapter's
+      // opening exchange — all queued, so the outgoing chapter's closing lines
+      // are heard before any of it.
+      this.story.playCard(this.campaign.progressLabel, chapter.title);
+      if (chapter.forceHero && swapped) {
+        this.story.playCard('STORY', `${HEROES[chapter.forceHero].name} takes this one.`);
+      }
+      this.story.play(CHAPTER_BEATS[chapter.title]?.open);
+    } else {
+      // Restoring a save. Nothing is queued and nothing is owed: show the card
+      // straight away, and skip the opening exchange for a chapter the player
+      // has already been introduced to.
+      this.hud.showSubtitle(this.campaign.progressLabel, chapter.title, '#ffb703');
     }
 
     // The partner is whichever hero you are not currently playing.
@@ -1263,6 +1415,7 @@ export class Game {
       return;
     }
 
+    this.story.clear();
     this.campaign = new Campaign(data.mode);
     this.progression.restore(data.progression);
     this.player.restoreAppearance(data.heroId, data.suitByHero);
@@ -1301,7 +1454,7 @@ export class Game {
       }
     } else {
       // Re-apply the chapter's clock, forced hero and partner, then spawn it.
-      this.enterChapter();
+      this.enterChapter(false);
       this.advanceCampaign();
     }
 
@@ -1318,6 +1471,7 @@ export class Game {
   /** Chooses the mode and starts play. Called from the boot overlay buttons. */
   startMode(mode: GameModeId): void {
     SaveGame.clear();
+    this.story.clear();
     this.campaign = new Campaign(mode);
     this.crimesCleared = 0;
     this.villainsSurfaced = 0;

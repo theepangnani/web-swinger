@@ -295,6 +295,11 @@ const AUTHORED: readonly Book[] = [
       },
     ],
   },
+  /**
+   * Miles' book, start to finish. The first three chapters used to let you
+   * play either hero, which put Peter on screen watching himself deteriorate
+   * — the one reading of those chapters that cannot be true.
+   */
   {
     title: 'Book Six',
     subtitle: 'The Poison',
@@ -304,6 +309,7 @@ const AUTHORED: readonly Book[] = [
         desc: 'Peter has been swinging harder and landing heavier for a week. Clear three and keep an eye on him.',
         crimes: 3,
         villains: [],
+        forceHero: 'MILES',
         time: 'DUSK',
       },
       {
@@ -311,6 +317,7 @@ const AUTHORED: readonly Book[] = [
         desc: 'He put a man through a wall for a stolen phone. Two more, and talk to him after.',
         crimes: 2,
         villains: [],
+        forceHero: 'MILES',
         time: 'NIGHT',
       },
       {
@@ -318,6 +325,7 @@ const AUTHORED: readonly Book[] = [
         desc: 'You get there and the alley is empty except for the black. Two more crimes, and no sign of Peter anywhere.',
         crimes: 2,
         villains: [],
+        forceHero: 'MILES',
         time: 'NIGHT',
       },
       {

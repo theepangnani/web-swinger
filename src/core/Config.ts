@@ -758,6 +758,26 @@ export const CONFIG = {
     chainLength: 4,
   },
 
+  /**
+   * Scripted dialogue. See `src/game/Story.ts`.
+   *
+   * The pacing numbers here exist to stop the story from becoming noise: the
+   * radio only speaks into genuine calm, dispatch only calls in some of the
+   * crimes, and every line buys a little silence after itself so a bark cannot
+   * land on top of a written one.
+   */
+  story: {
+    enabled: true,
+    /** Seconds of uninterrupted calm before the radio says something. */
+    ambientInterval: 95,
+    /** Fraction of newly staged crimes that get a dispatch callout. */
+    dispatchChance: 0.45,
+    /** Minimum gap between two dispatch callouts, seconds. */
+    dispatchCooldown: 40,
+    /** Extra seconds a scripted line holds the bark channel after it ends. */
+    lineTail: 0.6,
+  },
+
   traversal: {
     /** Releasing the web within this window after the arc's apex launches. */
     pointLaunchWindow: 0.4,

@@ -48,6 +48,8 @@ export class ThugSystem implements TargetProvider {
   readonly crimes: Crime[] = [];
 
   onCrimeResolved: ((crime: Crime) => void) | null = null;
+  /** Raised when a new crime is staged, so dispatch can call it in. */
+  onCrimeStarted: ((crime: Crime) => void) | null = null;
   onThugDefeated: ((thug: Thug) => void) | null = null;
   /** Raised the moment a thug starts winding up, for the spider-sense cue. */
   onTelegraph: (() => void) | null = null;
@@ -246,6 +248,7 @@ export class ThugSystem implements TargetProvider {
     }
 
     this.crimes.push(crime);
+    this.onCrimeStarted?.(crime);
     return true;
   }
 

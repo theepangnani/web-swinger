@@ -1,6 +1,7 @@
 import { CONFIG } from '../core/Config';
 import type { HeroId } from '../game/Heroes';
 import { VoiceClips } from './VoiceClips';
+import { STORY_LINES } from '../game/Story';
 
 /**
  * Contextual barks.
@@ -149,11 +150,30 @@ const TAUNTS: Record<string, readonly string[]> = {
  *
  * Villains have taunts only, which all live under the `idle` event.
  */
-export const VOICE_LINES: Record<string, Record<string, readonly string[]>> = {
+export const VOICE_LINES: Record<string, Record<string, readonly string[]>> = withStory({
   PETER,
   MILES,
   ...Object.fromEntries(Object.entries(TAUNTS).map(([kind, lines]) => [kind, { idle: lines }])),
-};
+});
+
+/**
+ * Folds scripted story dialogue in as a `story` event on each speaker.
+ *
+ * The renderer walks speakers then events, so this is all it takes for a clip
+ * pack to cover the campaign's written scenes as well as its barks — and the
+ * ordering inside `STORY_LINES` is the same ordering `Voice.line` indexes by,
+ * which is the property that keeps a recording matched to its subtitle.
+ * Speakers who only ever appear in the story (Watanabe, Jameson, May) arrive
+ * here with no bark bank at all, so the entry is created for them.
+ */
+function withStory(
+  banks: Record<string, Record<string, readonly string[]>>,
+): Record<string, Record<string, readonly string[]>> {
+  for (const [speaker, lines] of Object.entries(STORY_LINES)) {
+    banks[speaker] = { ...(banks[speaker] ?? {}), story: lines };
+  }
+  return banks;
+}
 
 /** Per-event cooldowns in seconds — chatty lines are throttled harder. */
 const COOLDOWNS: Record<VoiceEvent, number> = {
@@ -211,6 +231,17 @@ const PROFILES: Record<string, Profile> = {
   SANDMAN: { pitch: 0.5, rate: 0.82, gain: 1, prefer: [/davis|guy|george|male/i], spread: 0.06 },
   // Peter's own profile, dropped a fifth and slowed. Same person, wrong.
   'SYMBIOTE PETER': { pitch: 0.62, rate: 0.9, gain: 1, prefer: [/guy|david|ryan|male/i], spread: 0.1 },
+
+  // Story speakers. Nobody here throws a punch, so the shaping is about
+  // separating a police radio from a podcast from a shouting newspaperman —
+  // all three of which would otherwise arrive in the same default voice.
+  MJ: { pitch: 1.0, rate: 1.04, gain: 1, prefer: [/michelle|eva|libby|female/i], spread: 0.1 },
+  MAY: { pitch: 0.98, rate: 0.9, gain: 1, prefer: [/susan|hazel|catherine|female/i], spread: 0.07 },
+  YURI: { pitch: 0.95, rate: 1.1, gain: 0.95, prefer: [/clara|nova|female/i], spread: 0.06 },
+  JAMESON: { pitch: 0.8, rate: 1.22, gain: 1, prefer: [/george|guy|male/i], spread: 0.24 },
+  GANKE: { pitch: 1.18, rate: 1.12, gain: 0.95, prefer: [/liam|brandon|male/i], spread: 0.14 },
+  RIO: { pitch: 1.02, rate: 0.96, gain: 1, prefer: [/paloma|isabela|female/i], spread: 0.08 },
+  DANIKA: { pitch: 1.12, rate: 1.14, gain: 0.9, prefer: [/aria|jenny|female/i], spread: 0.12 },
 };
 
 /**
@@ -246,6 +277,13 @@ export class Voice {
   private hero: HeroId = 'PETER';
   private clock = 0;
   private globalReadyAt = 0;
+  /**
+   * Barks are suppressed until this time. A scripted scene is the one thing
+   * that outranks everything else being said — a boss taunt landing in the
+   * middle of a chapter's closing exchange reads as a bug, not as texture —
+   * and the `force` flag deliberately does not get past it.
+   */
+  private holdUntil = 0;
   private readonly readyAt = new Map<string, number>();
   private lastText = '';
   /** Resolved SpeechSynthesisVoice per speaker, rebuilt when the list loads. */
@@ -296,6 +334,34 @@ export class Voice {
     return this.emit(`villain:${kind}`, lines, 11, kind, 'idle', false);
   }
 
+  /**
+   * Speaks one scripted story line, as anybody.
+   *
+   * Unlike a bark this is never dropped: it is authored dialogue at an exact
+   * point in the campaign, so it ignores cooldowns and instead pushes the bark
+   * cooldown out ahead of itself. The subtitle is left to the caller, which
+   * knows the speaker's display name and colour; `onLine` still fires so the
+   * procedural voice bed layers under villains here too.
+   *
+   * `clip` is the line's index inside its speaker's story bank, so a recorded
+   * pack plays the recording of *this* line rather than a different one.
+   */
+  line(speaker: string, text: string, clip: number, seconds: number): void {
+    this.lastText = text;
+    this.hold(seconds);
+    if (!this.enabled) return;
+    this.onLine?.(speaker);
+    const profile = PROFILES[speaker] ?? DEFAULT_PROFILE;
+    const played = clip >= 0 && this.clips.play(speaker, 'story', clip, this.volume * profile.gain);
+    if (!played && this.supported) this.speak(text, speaker);
+  }
+
+  /** Suppresses barks for `seconds`. Scripted scenes hold the floor. */
+  hold(seconds: number): void {
+    const until = this.clock + seconds;
+    if (until > this.holdUntil) this.holdUntil = until;
+  }
+
   setEnabled(enabled: boolean): void {
     this.enabled = enabled;
     if (!enabled) this.stop();
@@ -329,6 +395,8 @@ export class Voice {
     force: boolean,
   ): boolean {
     if (lines.length === 0) return false;
+    // Checked before `force`, on purpose: nothing interrupts written dialogue.
+    if (this.clock < this.holdUntil) return false;
     if (!force && this.clock < this.globalReadyAt) return false;
     if (!force && this.clock < (this.readyAt.get(key) ?? 0)) return false;
 

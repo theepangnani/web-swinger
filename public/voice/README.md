@@ -70,6 +70,11 @@ Exactly as they appear in the subtitle:
 `PETER` · `MILES` · `VENOM` · `BLACK CAT` · `ELECTRO` · `GREEN GOBLIN` ·
 `SANDMAN` · `SYMBIOTE PETER`
 
+The campaign's written scenes add speakers who never throw a punch. They only
+ever have a `story` bank:
+
+`MJ` · `MAY` · `YURI` · `JAMESON` · `GANKE` · `RIO` · `DANIKA`
+
 ## Event keys
 
 Hero events — used for `PETER` and `MILES`:
@@ -105,6 +110,18 @@ record them for both PETER and MILES.
 **All villain taunts live under the single key `idle`.** Put as many lines in
 that array as you like.
 
+### `story`
+
+Every speaker also has a `story` bank: the scripted campaign dialogue from
+`src/game/Story.ts` — chapter openings, halfway lines, closings, boss arrivals
+and defeats, the police radio and the Bugle. It is the largest bank by a wide
+margin and the one worth recording first, because those lines are authored for
+an exact moment rather than fired at random.
+
+Lines written for whichever hero you are playing appear in **both** the `PETER`
+and `MILES` story banks, at the same index in each. Record them for both, or
+one hero plays the scene in silence.
+
 ## How lines are picked
 
 The game chooses a line index first and then looks for a recording at that
@@ -113,7 +130,10 @@ four written lines and you supply two files, indices wrap — so supply the same
 number of files as there are lines, or accept that some repeat.
 
 The written lines themselves are in `src/audio/Voice.ts`, in the `PETER`,
-`MILES` and `TAUNTS` tables.
+`MILES` and `TAUNTS` tables, and in `src/game/Story.ts` for everything under
+`story`. `VOICE_LINES` exports all of them in exactly the order the manifest
+indexes, which is why `scripts/make-voices.mjs` reads that export rather than
+keeping its own copy of the script.
 
 ## Notes
 

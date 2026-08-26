@@ -61,7 +61,7 @@ context, so most of the game is reachable from Node; the parts that genuinely
 need WebGL get a stub from the test.
 
 ```bash
-npm test                # all six, in parallel
+npm test                # all seven, in parallel
 npm test rematch        # just the suites whose filename matches
 ```
 
@@ -70,6 +70,7 @@ npm test rematch        # just the suites whose filename matches
 | `static-checks.cjs` | Source-text invariants across every `.ts` file: DOM ids the HUD binds to, config keys that must exist, patterns that have regressed before. |
 | `campaign.mjs` | Walks all 39 chapters. No chapter may be skipped, stall, or complete early. Includes the surplus-crime and legacy-save-migration cases. |
 | `books.mjs` | Story shape: every book ends on a boss, difficulty climbs, the last book fields everyone. |
+| `story.mjs` | Chapter dialogue: every beat reaches the player, none is written for a villain or partner who is not in the scene. |
 | `rematch.mjs` | A chapter can only ever field the villain it named — the boss-marathon regression. |
 | `numeric.mjs` | The day/night clock keeps running past one cycle, and the world never goes pitch dark. |
 | `joints.mjs` | Villain limb geometry sits exactly where it was authored. |
@@ -132,6 +133,7 @@ src/
 │   └── ThugModel.ts         Procedural thug body
 ├── game/
 │   ├── GameMode.ts          Books, chapters, campaign progression
+│   ├── Story.ts             Chapter dialogue, the radio, the scene director
 │   ├── SaveGame.ts          localStorage persistence + schema
 │   ├── Progression.ts       XP, unlocks
 │   ├── Heroes.ts            Peter / Miles definitions
@@ -171,6 +173,40 @@ or muted (`M`).
 
 Barks are driven from state transitions in `Game.updateBarks`, throttled by a
 global cooldown plus a per-event cooldown, and never repeat the previous line.
+
+### The story layer
+
+`GameMode.ts` is structure — how many crimes, which boss, what time of day.
+`Story.ts` is what the city says while you do it, and it runs over the same
+subtitle and speech pipeline as the barks.
+
+Every chapter has an **opening exchange**, a **halfway line** partway through
+its street work, a **closing exchange**, and a written line for each boss
+arriving and each boss going down. Beats are keyed by chapter *title*, so
+reordering the books cannot silently detach dialogue from the chapter it was
+written for; `tests/story.mjs` enforces that those titles stay unique and that
+no beat is written for a villain or partner the chapter never fields.
+
+Around the campaign sits **the radio**: Watanabe calling crimes in, Jameson
+ranting, and May, MJ, Ganke, Rio and Danika filling genuine calm. Radio
+segments are gated on how far through the books you are, so the city is never
+overheard discussing something you have not reached.
+
+Three rules keep it from becoming noise:
+
+- **Scenes queue, they do not interrupt.** Beating the last villain of a
+  chapter fires that villain going down, then the chapter closing, then the
+  next chapter opening. Played at once, you would see only the third.
+- **Written dialogue outranks everything.** `Voice.hold` suppresses barks for
+  as long as a line is on screen, and a bark's `force` flag does not get past
+  it — a boss taunt landing inside a closing exchange reads as a bug.
+- **Ambient chatter yields.** The radio is dropped outright whenever anything
+  else is waiting, and only speaks when no fight is running.
+
+Story lines are folded into `VOICE_LINES` as a `story` event, so
+`scripts/make-voices.mjs` renders them into a clip pack exactly like barks —
+and `Voice.line` is handed the line's index inside its speaker bank, which is
+what keeps a recording matched to the subtitle it belongs to.
 
 ### Physics
 
