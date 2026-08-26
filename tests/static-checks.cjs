@@ -314,5 +314,100 @@ console.log('[10] story wiring');
 
 console.log('');
 
+// --- 11. losing ------------------------------------------------------------
+// For most of this project's life there was no way to lose it. Dying restored
+// full health, granted triple invulnerability and moved the player to the
+// middle of the map, and told no other system it had happened — so every boss
+// was a bucket you emptied across as many lives as it took, and a player could
+// lose a fight without ever registering that they had.
+console.log('[11] defeat has a cost');
+{
+  const enemySrc = read(path.join(ROOT, 'src/enemies/EnemySystem.ts'));
+  const thugSrc = read(path.join(ROOT, 'src/enemies/ThugSystem.ts'));
+
+  if (!/relieve\(/.test(enemySrc)) fail('EnemySystem has no way to give health back on a defeat');
+  if (!/this\.enemies\.relieve\(/.test(gameSrc)) {
+    fail('nothing relieves the villains when the player goes down — bosses are attrition again');
+  }
+  // Scoped, or free roam hands health back to six bosses across the city for
+  // a death to a street mugger.
+  if (!/arenaActive \|\| villain\.pos\.distanceToSquared/.test(enemySrc)) {
+    fail('relief is no longer scoped to the villains actually in the fight');
+  }
+  // Landing at full health in a different postcode with no message is how a
+  // player fails to notice they lost.
+  if (!/playCard\(\s*\n?\s*fell \? 'YOU FELL' : 'YOU WENT DOWN'/.test(gameSrc)) {
+    fail('going down is silent again');
+  }
+  if (!/findSpawnNear\(/.test(gameSrc)) {
+    fail('a defeat sends the player back to the centre of the map — a traversal penalty, not a combat one');
+  }
+  if (!/deaths: this\.deaths/.test(gameSrc)) fail('deaths are not written to the save');
+
+  // --- crimes ---
+  // Sixty crimes across the campaign, and they used to be one encounter.
+  const kindLine = thugSrc.match(/export type CrimeKind =([^;]*);/);
+  const kinds = kindLine ? [...kindLine[1].matchAll(/'([A-Z]+)'/g)].map((m) => m[1]) : [];
+  if (kinds.length < 3) fail(`only ${kinds.length} crime kind(s) — the campaign asks for around sixty crimes`);
+
+  for (const kind of kinds) {
+    if (CONFIG.crimes.timeLimits[kind] === undefined) fail(`${kind} has no time limit entry`);
+    if (CONFIG.crimes.rewards[kind] === undefined) fail(`${kind} has no reward entry`);
+    if (!new RegExp(`${kind}: \\{ brute:`).test(thugSrc)) fail(`${kind} has no composition`);
+  }
+  for (const kind of Object.keys(CONFIG.crimes.timeLimits)) {
+    if (!kinds.includes(kind)) fail(`a time limit is set for "${kind}", which is not a crime kind`);
+  }
+
+  if (!/onCrimeFailed/.test(thugSrc)) fail('a crime can no longer be lost');
+  if (!/this\.thugs\.onCrimeFailed/.test(gameSrc)) fail('losing a crime is not handled');
+  // A lost crime must not pay. The failure handler is the one place that could
+  // accidentally award either, and both would make the fail state cosmetic.
+  const failHandler = gameSrc.match(/onCrimeFailed = \([^)]*\): void => \{[\s\S]*?\n {4}\};/);
+  if (!failHandler) fail('could not find the crime-failure handler to check it');
+  else {
+    if (/awardXp/.test(failHandler[0])) fail('a failed crime still awards XP');
+    if (/logStoryEvent/.test(failHandler[0])) fail('a failed crime still counts toward the chapter');
+  }
+  // The clock has to be visible, and not only in chapters that ask for crimes.
+  if (!/crimeClockLabel/.test(gameSrc)) fail('the crime clock is not reported to the player');
+  // Read structurally rather than by adjacent lines: the point is that the
+  // "this chapter asks for no crimes" path still reports a clock, however the
+  // function happens to be arranged around it. The first version of this check
+  // matched two specific adjacent lines and silently passed when the bug was
+  // reintroduced with one statement in between.
+  const labelFn = gameSrc.match(/private crimeProgressLabel\(\): string \{[\s\S]*?\n {2}\}/);
+  if (!labelFn) {
+    fail('could not find crimeProgressLabel to check it');
+  } else {
+    const earlyReturn = labelFn[0].match(/if \(needed <= 0\) return ([^;]+);/);
+    if (!earlyReturn) {
+      fail('crimeProgressLabel no longer handles chapters that ask for no crimes');
+    } else if (!/clock/.test(earlyReturn[1])) {
+      fail('the crime clock is hidden during boss chapters, where crimes still spawn and can be lost');
+    }
+  }
+
+  // --- tips ---
+  // Twenty verbs and, before this, one static panel in the corner.
+  const tipsSrc = read(path.join(ROOT, 'src/ui/Tips.ts'));
+  const tipIds = [...tipsSrc.matchAll(/^  (\w+): \{$/gm)].map((m) => m[1]);
+  if (tipIds.length < 5) fail(`only ${tipIds.length} first-time prompt(s) for twenty-odd verbs`);
+  for (const id of tipIds) {
+    if (!new RegExp(`showTip\\('${id}'\\)`).test(gameSrc)) fail(`the "${id}" tip is written but never shown`);
+  }
+  // Claiming and marking must be one operation, or a tip repeats forever.
+  if (!/this\.seen\.add\(id\);\s*\n\s*this\.persist\(\);\s*\n\s*return tip;/.test(tipsSrc)) {
+    fail('claiming a tip no longer marks it seen — the prompts will repeat');
+  }
+
+  console.log(
+    `  ok — defeat costs health and a call, ${kinds.length} crime kinds with clocks, ` +
+      `${tipIds.length} first-time prompts, all reachable`,
+  );
+}
+
+console.log('');
+
 console.log(problems === 0 ? 'ALL CHECKS PASSED' : `${problems} PROBLEM(S) FOUND`);
 process.exit(problems === 0 ? 0 : 1);

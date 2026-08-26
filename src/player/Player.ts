@@ -543,7 +543,7 @@ export class Player implements SwingBody {
     this.prevPos.copy(position);
     this.velocity.set(0, 0, 0);
     this.hp = CONFIG.combat.playerMaxHp;
-    this.invulnTimer = CONFIG.combat.invulnTime * 3;
+    this.invulnTimer = CONFIG.combat.invulnTime * CONFIG.defeat.invulnScale;
     this.state = PlayerState.Airborne;
     this.endStrike();
   }

@@ -725,6 +725,42 @@ export const CONFIG = {
     pinArrival: 0.004,
   },
 
+  /**
+   * What going down costs.
+   *
+   * It used to cost nothing at all. Dying restored full health, granted triple
+   * invulnerability and moved you to the tallest building in the middle of the
+   * map, and no other system was told it had happened — so every boss in the
+   * game could be beaten by attrition, and a player could lose a fight without
+   * ever noticing they had. These are the numbers that make it a setback.
+   */
+  defeat: {
+    /**
+     * Fraction of maximum health every live villain recovers when you go down.
+     *
+     * The whole point. At zero, a boss is a bucket you empty across as many
+     * lives as it takes; at one, a single mistake undoes the entire fight.
+     * A third means a death is worth roughly a third of a fight, which is a
+     * real cost you can still come back from.
+     */
+    villainRelief: 0.34,
+    /**
+     * How far a villain can be and still count as the one who beat you, metres.
+     *
+     * Wider than a fight feels, because Electro and the Goblin finish people
+     * from a long way off and the alternative reading — "nobody killed you" —
+     * plays the line for falling out of the world instead.
+     */
+    killerRadius: 220,
+    /** How far from where you fell you come back, metres. */
+    respawnMin: 130,
+    respawnMax: 260,
+    /** Invulnerability on respawn, as a multiple of the usual window. */
+    invulnScale: 3,
+    /** Crimes you were in the middle of are lost. */
+    losesCrimes: true,
+  },
+
   fx: {
     /** Speed at which speed lines reach full strength. */
     speedLineRef: 62,
@@ -904,6 +940,30 @@ export const CONFIG = {
     maxThugs: 6,
     /** Crimes that must be cleared before the next villain surfaces. */
     crimesPerVillain: 2,
+    /**
+     * Seconds on the clock once the player arrives, before the crime is lost.
+     *
+     * The clock starts on arrival rather than on spawn, deliberately. Running
+     * it from the moment a crime exists would fail crimes on the far side of
+     * the map that the player was never told about, which is a punishment for
+     * nothing. Starting it when the player shows up turns each one into "you
+     * are here, now finish it" — which is what a crime in progress actually is.
+     *
+     * Zero means no clock: an ambush is not going anywhere.
+     */
+    timeLimits: {
+      MUGGING: 45,
+      SHAKEDOWN: 60,
+      HEIST: 70,
+      AMBUSH: 0,
+    },
+    /** XP multiplier per kind, against `progression.xp.crime`. */
+    rewards: {
+      MUGGING: 1,
+      SHAKEDOWN: 1.15,
+      HEIST: 1.5,
+      AMBUSH: 1.35,
+    },
   },
 
   progression: {

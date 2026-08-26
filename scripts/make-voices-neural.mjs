@@ -12,6 +12,7 @@
  *     node scripts/make-voices-neural.mjs --dry-run       # what it would cost
  *     node scripts/make-voices-neural.mjs --list          # the cast
  *     node scripts/make-voices-neural.mjs --only VENOM    # one character
+ *     node scripts/make-voices-neural.mjs --prune         # drop orphaned clips
  *     node scripts/make-voices-neural.mjs --engine eleven # ElevenLabs
  *
  * Two engines, one cast list and one manifest:
@@ -30,7 +31,16 @@
  * rendering one line rather than six hundred.
  */
 import { spawn } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  renameSync,
+  rmSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -49,6 +59,7 @@ const engine = value('--engine') ?? 'edge';
 const dryRun = has('--dry-run');
 const listOnly = has('--list');
 const force = has('--force');
+const prune = has('--prune');
 const onlyArg = value('--only');
 const only = onlyArg ? new Set(onlyArg.split(',').map((s) => s.trim().toUpperCase())) : null;
 
@@ -354,6 +365,25 @@ if (onDisk < total) {
   console.log('some clips are missing — run again to fill the gaps');
 }
 
+/**
+ * Clips on disk that the manifest no longer refers to.
+ *
+ * Filenames are derived from the line text, so editing a line renders a new
+ * clip and abandons the old one — the renderer can only ever grow the pack.
+ * Left alone that is dead audio committed to the repository forever, and it is
+ * invisible: nothing plays it and nothing complains about it. So it is always
+ * counted, and removed when asked.
+ */
+const orphans = findOrphans();
+if (orphans.length > 0) {
+  if (prune) {
+    for (const file of orphans) unlinkSync(file);
+    console.log(`pruned ${orphans.length} clip(s) no longer in the manifest`);
+  } else {
+    console.log(`${orphans.length} clip(s) on disk are no longer used — re-run with --prune to remove them`);
+  }
+}
+
 function countClips() {
   let n = 0;
   for (const speaker of Object.keys(VOICE_LINES)) {
@@ -361,6 +391,24 @@ function countClips() {
     if (existsSync(dir)) n += readdirSync(dir).filter((f) => f.endsWith('.mp3')).length;
   }
   return n;
+}
+
+function findOrphans() {
+  const wanted = new Set();
+  for (const events of Object.values(manifest)) {
+    for (const paths of Object.values(events)) for (const p of paths) wanted.add(p);
+  }
+  const dead = [];
+  for (const speaker of Object.keys(VOICE_LINES)) {
+    const folder = slug(speaker);
+    const dir = join(OUT_DIR, folder);
+    if (!existsSync(dir)) continue;
+    for (const name of readdirSync(dir)) {
+      if (!name.endsWith('.mp3')) continue;
+      if (!wanted.has(`${folder}/${name}`)) dead.push(join(dir, name));
+    }
+  }
+  return dead;
 }
 
 /** Hands the batch to the Python half, which owns the edge-tts session. */

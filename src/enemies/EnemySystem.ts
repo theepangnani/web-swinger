@@ -231,6 +231,40 @@ export class EnemySystem implements TargetProvider {
   /** Raised when a villain's health reaches zero. */
   onDefeated: ((villain: Villain) => void) | null = null;
   /**
+   * Gives every live villain a share of their health back, and stands them
+   * down out of their arena.
+   *
+   * Called when the player goes down. Without it a boss fight is an attrition
+   * war the player cannot lose: death restored the player to full and left the
+   * villain exactly as damaged as they were, so any boss could be ground down
+   * across as many lives as it took.
+   *
+   * The half-health latch is released for anyone this pushes back above the
+   * halfway mark, because their mid-fight line is about the fight turning and
+   * the fight has just turned back.
+   */
+  relieve(fraction: number, near: THREE.Vector3, radius: number): number {
+    let helped = 0;
+    const radiusSq = radius * radius;
+    for (const villain of this.villains) {
+      if (!villain.alive || villain.dormant) continue;
+      // Only the ones who were actually in it. Free roam has the whole roster
+      // live at once, so relieving everybody meant dying to a street mugger
+      // handed health back to six bosses across the city.
+      const inTheFight = villain.arenaActive || villain.pos.distanceToSquared(near) < radiusSq;
+      if (!inTheFight) continue;
+      const before = villain.hp;
+      villain.hp = Math.min(villain.maxHp, villain.hp + villain.maxHp * fraction);
+      if (villain.hp > villain.maxHp * 0.5) villain.turned = false;
+      // Disengaging as well: the player is about to reappear somewhere else,
+      // and a boss still holding an arena around a corpse looks broken.
+      villain.arenaActive = false;
+      if (villain.hp > before) helped++;
+    }
+    return helped;
+  }
+
+  /**
    * Raised once per fight, the first time a villain drops below half health.
    *
    * The moment a boss fight turns is the one point in it with anything new to

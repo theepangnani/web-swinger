@@ -14,7 +14,7 @@ import { EnemySystem, VILLAIN_KINDS, type Villain, type VillainKind } from './en
 import { Ally } from './game/Ally';
 import { DayNight } from './world/DayNight';
 import { HEROES, nextHero, type HeroId } from './game/Heroes';
-import { ThugSystem } from './enemies/ThugSystem';
+import { ThugSystem, type Crime } from './enemies/ThugSystem';
 import { Civilians } from './world/Civilians';
 import { reachTo } from './enemies/CombatTarget';
 import type { TargetProvider } from './enemies/CombatTarget';
@@ -23,6 +23,7 @@ import type { ScreenMarker, VillainReadout } from './ui/HUD';
 import type { OsmCityData } from './world/OsmData';
 import { Settings, DIFFICULTIES } from './ui/Settings';
 import { SettingsPanel } from './ui/SettingsPanel';
+import { Tips } from './ui/Tips';
 import {
   BOOKS,
   Campaign,
@@ -38,7 +39,10 @@ import {
   AMBIENT,
   BOOK_ENDINGS,
   CHAPTER_BEATS,
+  CRIME_LOST,
+  DEFEAT,
   DISPATCH,
+  FALL,
   PRESSURE,
   SIEGE,
   THREADS,
@@ -106,6 +110,8 @@ export class Game {
   private readonly sfx = new Sfx();
   /** Paces the campaign's written dialogue out through the voice and HUD. */
   private readonly story = new StoryDirector();
+  /** First-time prompts, remembered across runs. */
+  private readonly tips = new Tips();
   private readonly villainRng = mulberry32(CONFIG.city.seed ^ 0x9e3779b9);
 
   private accumulator = 0;
@@ -163,6 +169,8 @@ export class Game {
    * it was the chapter you were on.
    */
   private storyLog: StoryEvent[] = [];
+  /** Times the player has gone down. Persisted, and shown on Continue. */
+  private deaths = 0;
   /** Post-game wave number. 0 until every book is closed. */
   private postgameTier = 0;
   /**
@@ -412,9 +420,20 @@ export class Game {
       this.awardXp(CONFIG.progression.xp.thug);
       this.player.addFocus(CONFIG.focus.perHit * this.progression.focusMultiplier);
     };
-    this.thugs.onCrimeStarted = (): void => this.callInCrime();
-    this.thugs.onCrimeResolved = (): void => {
-      this.awardXp(CONFIG.progression.xp.crime);
+    this.thugs.onCrimeStarted = (crime): void => this.callInCrime(crime);
+    this.thugs.onCrimeFailed = (): void => {
+      // No story credit and no experience: the log only ever hears about
+      // crimes that were actually stopped, so a lost one cannot pay for a
+      // chapter. Saying so out loud is the whole point of a fail state.
+      this.story.play(CRIME_LOST[this.dispatchCursor % CRIME_LOST.length]);
+      this.dispatchCursor++;
+      this.sfx.play('alert', 0.6);
+      this.markDirty();
+    };
+    this.thugs.onCrimeResolved = (crime): void => {
+      // Harder kinds are worth more; a heist under a tight clock should not
+      // pay the same as a mugging you strolled into.
+      this.awardXp(CONFIG.progression.xp.crime * CONFIG.crimes.rewards[crime.kind]);
       this.crimesCleared++;
       this.crimesSinceVillain++;
       this.logStoryEvent(CRIME);
@@ -689,6 +708,7 @@ export class Game {
     this.updateAmbient(dt);
     this.updateBanter(dt);
     this.updatePressure();
+    this.updateTips();
     this.updateBarks(dt);
     this.updateBeacons(dt);
     this.updateMarkers();
@@ -1270,6 +1290,7 @@ export class Game {
     // fall back to a generic taunt when it did not — which is every villain
     // in free roam and in the post-game siege.
     if (!this.playBeat('meet', villain.kind)) this.voice.taunt(villain.kind);
+    this.showTip('villain');
     // A villain who *is* one of the heroes decides who you play. Applied here
     // rather than only from chapter data, so it holds in free roam too.
     this.enforceHeroLock();
@@ -1315,12 +1336,14 @@ export class Game {
    * is always doing, and narrating all of them would turn six lines into a
    * loop the player learns by heart inside ten minutes.
    */
-  private callInCrime(): void {
+  private callInCrime(crime: Crime): void {
     if (!CONFIG.story.enabled || this.dispatchCooldown > 0) return;
     if (this.story.busy || this.inVillainFight()) return;
     if (Math.random() > CONFIG.story.dispatchChance) return;
     this.dispatchCooldown = CONFIG.story.dispatchCooldown;
-    this.story.play(DISPATCH[this.dispatchCursor % DISPATCH.length], 'AMBIENT');
+    // Keyed by what is happening, so the call describes the call.
+    const calls = DISPATCH[crime.kind];
+    this.story.play(calls[this.dispatchCursor % calls.length], 'AMBIENT');
     this.dispatchCursor++;
   }
 
@@ -1331,9 +1354,11 @@ export class Game {
    * Walks `villains` rather than the `engaged` getter, which filters into a
    * fresh array — correct once, but this runs every frame.
    */
-  private nearbyVillain(): Villain | null {
+  // Explicitly typed: CONFIG is `as const`, so the default would otherwise pin
+  // the parameter to the literal type of calmRadius and refuse any other value.
+  private nearbyVillain(radius: number = CONFIG.story.calmRadius): Villain | null {
     let best: Villain | null = null;
-    let bestDistance = CONFIG.story.calmRadius * CONFIG.story.calmRadius;
+    let bestDistance = radius * radius;
     for (const villain of this.enemies.villains) {
       if (!villain.alive || villain.dormant) continue;
       const distance = villain.pos.distanceToSquared(this.player.pos);
@@ -1424,6 +1449,43 @@ export class Game {
     }
     // Everything eligible is finished. Stop re-checking on every crime.
     this.crimesSinceThread = 0;
+  }
+
+  /**
+   * Shows a first-time prompt, once ever.
+   *
+   * Queued as a card rather than written to the HUD, for the same reason the
+   * chapter card is: anything written directly is painted over by the next
+   * line a frame later, and a tutorial the player never gets to read is worse
+   * than none, because it has already been marked as shown.
+   */
+  private showTip(id: string): void {
+    const tip = this.tips.claim(id);
+    if (tip) this.story.playCard(tip.label, tip.text);
+  }
+
+  /**
+   * The prompts that depend on a situation rather than an event.
+   *
+   * Each is checked cheaply and at most once, because `claim` retires it — so
+   * after the first few minutes of a save this costs four comparisons a frame
+   * and nothing else.
+   */
+  private updateTips(): void {
+    if (this.player.state === PlayerState.Swinging) this.showTip('swing');
+    if (this.progression.skillPoints > 0) this.showTip('skills');
+    if (healthFraction(this.player) < CONFIG.voice.lowHealthFraction && this.player.hp > 0) {
+      this.showTip('hurt');
+    }
+    // Only once there is something to throw, and only once the player is close
+    // enough to a crime for it to be the useful answer.
+    if (!this.tips.hasSeen('crime') || !this.tips.hasSeen('gadget')) {
+      const crime = this.thugs.nearestCrime(this.player.pos);
+      if (crime) {
+        this.showTip('crime');
+        if (crime.engaged && this.gadgets.ammo.size > 0) this.showTip('gadget');
+      }
+    }
   }
 
   /**
@@ -1571,6 +1633,7 @@ export class Game {
         playtime: this.playtime,
         timeOfDay: this.dayNight.time,
         postgameTier: this.postgameTier,
+        deaths: this.deaths,
         storyState: {
           midBeatPlayed: this.midBeatPlayed,
           ambientCursor: this.ambientCursor,
@@ -1611,6 +1674,7 @@ export class Game {
     this.dayNight.setTime(data.timeOfDay);
     // Restore the tier *before* anything spawns, so a revived boss comes back
     // at the strength it had rather than at tier zero.
+    this.deaths = data.deaths ?? 0;
     this.postgameTier = data.postgameTier;
     this.enemies.tier = data.postgameTier;
     // Story saves only, and only when a wave was actually reached: a completed
@@ -1657,12 +1721,18 @@ export class Game {
   /** Wipes the save and returns to the title screen. */
   eraseSave(): void {
     SaveGame.clear();
+    // Erasing is the one action that means "I want to start over", so the
+    // first-time prompts come back with it. They deliberately survive an
+    // ordinary new game, since they record what the player has learned rather
+    // than what the character has done.
+    this.tips.reset();
     this.saveDirty = false;
   }
 
   /** Chooses the mode and starts play. Called from the boot overlay buttons. */
   startMode(mode: GameModeId): void {
     SaveGame.clear();
+    this.deaths = 0;
     this.story.clear();
     this.threadProgress.clear();
     this.crimesSinceThread = 0;
@@ -2001,10 +2071,79 @@ export class Game {
 
   private checkRespawn(): void {
     if (this.player.hp > 0 && this.player.pos.y > -40) return;
+    this.goDown(this.player.hp > 0);
+  }
+
+  /**
+   * Going down, and what it costs.
+   *
+   * It used to cost nothing whatsoever: full health back, triple invulnerability,
+   * a move to the tallest building in the middle of the map, and not one other
+   * system told that it had happened. The villain kept every point of damage
+   * you had put into them, which made every boss in the game a bucket you could
+   * empty across as many lives as it took — there was no way to lose a fight,
+   * only a slower way to win one. Worse, nothing said so: at full health in a
+   * different postcode, a player could lose badly and never register it.
+   *
+   * So three things happen now. Everyone still standing gets a share of their
+   * health back, which is what turns attrition back into a fight you can
+   * actually lose. Whoever put you down says so. And you come back within sight
+   * of where you fell rather than across the map, because the punishment should
+   * be the fight you have to do again, not the flight back to it.
+   *
+   * `fell` distinguishes the city killing you from a villain doing it — landing
+   * in the void is not a defeat anybody gets to gloat about.
+   */
+  private goDown(fell: boolean): void {
+    this.deaths++;
     this.web.release();
-    const spawn = this.findSpawn();
+
+    // Read before anything is relieved or disengaged: this is who did it.
+    // A generous radius on purpose: Electro and the Goblin can finish you from
+    // much further than a fight normally feels, and at the ambient-chatter
+    // radius they were being recorded as nobody having killed you at all —
+    // which then played the line for falling off the world.
+    const killer = fell ? null : this.nearbyVillain(CONFIG.defeat.killerRadius);
+    const relieved = this.enemies.relieve(
+      CONFIG.defeat.villainRelief,
+      this.player.pos,
+      CONFIG.defeat.killerRadius,
+    );
+    const lost = CONFIG.defeat.losesCrimes ? this.thugs.abandonEngaged() : 0;
+
+    this.story.playCard(
+      fell ? 'YOU FELL' : 'YOU WENT DOWN',
+      relieved > 0
+        ? 'They are back on their feet, and some of that fight is undone.'
+        : lost > 0
+          ? 'The call you were on is lost.'
+          : 'Get back up.',
+    );
+    this.story.play(killer ? DEFEAT[killer.kind] : FALL);
+    this.sfx.play('alert', 0.9);
+    this.chase.addShake(1);
+    this.showTip('down');
+
+    const spawn = this.findSpawnNear(this.player.pos);
     this.player.respawn(spawn);
     this.chase.reset(spawn);
+    this.markDirty();
+  }
+
+  /**
+   * A rooftop within sight of where the player fell.
+   *
+   * Respawning at the centre of the map made every death a traversal penalty
+   * on top of a combat one, which is the boring half of the cost. Coming back
+   * a couple of streets away keeps the fight in view. Falls into the void have
+   * no useful position to work from, so those still use the central drop-in.
+   */
+  private findSpawnNear(from: THREE.Vector3): THREE.Vector3 {
+    if (from.y < -20 || !Number.isFinite(from.x)) return this.findSpawn();
+    const { respawnMin, respawnMax } = CONFIG.defeat;
+    const roof = this.city.roofNear(this.villainRng, from.x, from.z, respawnMin, respawnMax);
+    if (!roof) return this.findSpawn();
+    return new THREE.Vector3(roof.roof.x, roof.roof.y + 6, roof.roof.z);
   }
 
   // ----------------------------------------------------------------- world
@@ -2063,14 +2202,33 @@ export class Game {
    */
   private crimeProgressLabel(): string {
     const needed = this.campaign.current.crimes;
-    if (needed <= 0) return '';
+    const crime = this.thugs.nearestCrime(this.player.pos);
+
+    // The clock is reported whether or not this chapter is asking for crimes.
+    // Crimes spawn during boss chapters too, and can be joined and lost there
+    // — gating the readout on the chapter meant a timer that could run out
+    // with nothing on screen ever having mentioned it.
+    const clock = crime ? this.crimeClockLabel(crime) : null;
+    if (needed <= 0) return clock ? ` (${clock})` : '';
 
     const done = this.campaign.crimesIntoChapter();
-    const crime = this.thugs.nearestCrime(this.player.pos);
-    const where = crime
-      ? `nearest ${Math.round(crime.pos.distanceTo(this.player.pos))}m — follow the marker`
-      : 'scanning for activity…';
-    return ` (${done}/${needed} cleared · ${where})`;
+    return ` (${done}/${needed} cleared · ${clock ?? 'scanning for activity…'})`;
+  }
+
+  /**
+   * What the tracker says about one crime.
+   *
+   * A clock the player cannot see is not a challenge, it is an ambush — so
+   * once they are on the call, the time left replaces the distance rather than
+   * sitting beside it.
+   */
+  private crimeClockLabel(crime: Crime): string {
+    if (!crime.engaged) {
+      const away = Math.round(crime.pos.distanceTo(this.player.pos));
+      return `nearest ${crime.kind.toLowerCase()} ${away}m — follow the marker`;
+    }
+    if (crime.timeLeft === Infinity) return `${crime.kind} · no clock, clear them out`;
+    return `${crime.kind} · ${Math.ceil(crime.timeLeft)}s left`;
   }
 
   private updateHud(dt: number): void {

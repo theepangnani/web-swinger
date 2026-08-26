@@ -29,6 +29,8 @@ export interface SaveData {
   timeOfDay: number;
   /** Post-game wave reached, 0 during the campaign. */
   postgameTier: number;
+  /** Times the player has gone down. Optional: absent on older saves. */
+  deaths?: number;
   /**
    * Where the narration had got to.
    *
@@ -81,6 +83,7 @@ export class SaveGame {
         playtime: numberOr(parsed.playtime, 0),
         timeOfDay: numberOr(parsed.timeOfDay, 0.78),
         postgameTier: numberOr(parsed.postgameTier, 0),
+        deaths: numberOr(parsed.deaths, 0),
         storyState: readStoryState(parsed.storyState),
         savedAt: numberOr(parsed.savedAt, 0),
       };
@@ -124,7 +127,10 @@ export class SaveGame {
         : data.mode === 'STORY'
           ? 'Story'
           : 'Free Roam';
-    return `${label} · Lv ${data.progression.level} · ${villains} villain${villains === 1 ? '' : 's'} down · ${time}`;
+    // Deaths are only mentioned once there are some. A fresh save reading
+    // "0 deaths" invites the player to protect a number rather than play.
+    const falls = data.deaths ? ` · ${data.deaths} fall${data.deaths === 1 ? '' : 's'}` : '';
+    return `${label} · Lv ${data.progression.level} · ${villains} villain${villains === 1 ? '' : 's'} down${falls} · ${time}`;
   }
 }
 

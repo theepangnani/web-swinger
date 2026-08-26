@@ -8,6 +8,40 @@ import { ThugFactory, poseThug, type ThugRig } from './ThugModel';
 
 export type ThugKind = 'ENFORCER' | 'BRUTE' | 'GUNNER';
 
+/**
+ * What kind of crime this is.
+ *
+ * Every crime in the game used to be the same encounter — some thugs, kill
+ * them all, no clock and no way to do it badly — and the campaign asks for
+ * around sixty of them. The kind changes who is there, how long you have, and
+ * what it is worth, which is the difference between sixty fights and one fight
+ * sixty times.
+ *
+ *  - `MUGGING`   small, quick, mostly enforcers. The clock is the victim.
+ *  - `SHAKEDOWN` a shopfront being leaned on. Bigger, mixed.
+ *  - `HEIST`     a crew mid-job. Gunners, the tightest clock, the best reward.
+ *  - `AMBUSH`    brutes, waiting. No clock: they are not going anywhere, and
+ *                they are the ones who came looking for you.
+ */
+export type CrimeKind = 'MUGGING' | 'SHAKEDOWN' | 'HEIST' | 'AMBUSH';
+
+export const CRIME_KINDS: readonly CrimeKind[] = ['MUGGING', 'SHAKEDOWN', 'HEIST', 'AMBUSH'];
+
+/**
+ * Composition per kind, as cumulative thresholds against one roll.
+ *
+ * `brute` is the roll below which a thug is a brute; `gunner` the roll below
+ * which it is a gunner; anything above is an enforcer. Written as thresholds
+ * rather than weights because that is exactly how the roll is read, and a
+ * weights table would need normalising to say the same thing.
+ */
+const COMPOSITION: Record<CrimeKind, { brute: number; gunner: number; min: number; max: number }> = {
+  MUGGING: { brute: 0.05, gunner: 0.2, min: 2, max: 4 },
+  SHAKEDOWN: { brute: 0.2, gunner: 0.45, min: 4, max: 6 },
+  HEIST: { brute: 0.12, gunner: 0.6, min: 4, max: 6 },
+  AMBUSH: { brute: 0.55, gunner: 0.65, min: 3, max: 5 },
+};
+
 export interface Thug extends CombatTarget {
   kind: ThugKind;
   readonly root: THREE.Group;
@@ -25,12 +59,20 @@ export interface Thug extends CombatTarget {
 export interface Crime {
   readonly id: number;
   readonly pos: THREE.Vector3;
+  readonly kind: CrimeKind;
   readonly thugs: Thug[];
   /** Player has come close enough to engage. */
   engaged: boolean;
   resolved: boolean;
   /** Counts up while the player is away from an engaged crime. */
   abandonTimer: number;
+  /**
+   * Seconds left once engaged, or Infinity for a kind with no clock. This is
+   * what makes a crime losable rather than merely unfinished.
+   */
+  timeLeft: number;
+  /** True if the clock ran out — as opposed to simply being walked away from. */
+  failed: boolean;
 }
 
 const _v1 = new THREE.Vector3();
@@ -50,6 +92,8 @@ export class ThugSystem implements TargetProvider {
   onCrimeResolved: ((crime: Crime) => void) | null = null;
   /** Raised when a new crime is staged, so dispatch can call it in. */
   onCrimeStarted: ((crime: Crime) => void) | null = null;
+  /** Raised when the clock runs out on a crime the player had joined. */
+  onCrimeFailed: ((crime: Crime) => void) | null = null;
   onThugDefeated: ((thug: Thug) => void) | null = null;
   /** Raised the moment a thug starts winding up, for the spider-sense cue. */
   onTelegraph: (() => void) | null = null;
@@ -136,7 +180,20 @@ export class ThugSystem implements TargetProvider {
       if (!crime.engaged && distance < CONFIG.crimes.engageRadius) {
         crime.engaged = true;
         crime.abandonTimer = 0;
-      } else if (crime.engaged && distance > CONFIG.crimes.engageRadius * 2.4) {
+      }
+
+      // The clock only runs once the player is actually on the call.
+      if (crime.engaged && crime.timeLeft !== Infinity) {
+        crime.timeLeft -= dt;
+        if (crime.timeLeft <= 0) {
+          crime.failed = true;
+          this.despawnCrime(crime);
+          this.onCrimeFailed?.(crime);
+          continue;
+        }
+      }
+
+      if (crime.engaged && distance > CONFIG.crimes.engageRadius * 2.4) {
         crime.abandonTimer += dt;
         if (crime.abandonTimer > CONFIG.crimes.abandonTime) this.despawnCrime(crime);
       } else if (crime.engaged) {
@@ -222,23 +279,33 @@ export class ThugSystem implements TargetProvider {
     const site = this.pickSite(near);
     if (!site) return false;
 
+    // Rotated rather than rolled, so a run of the same kind is impossible and
+    // the player sees all four early. Randomness here reads as repetition far
+    // more often than it reads as variety.
+    const kind = CRIME_KINDS[this.nextCrimeId % CRIME_KINDS.length]!;
+    const limit = CONFIG.crimes.timeLimits[kind];
     const crime: Crime = {
       id: this.nextCrimeId++,
       pos: site,
+      kind,
       thugs: [],
       engaged: false,
       resolved: false,
       abandonTimer: 0,
+      timeLeft: limit > 0 ? limit : Infinity,
+      failed: false,
     };
 
-    const count = Math.round(randRange(this.rng, CONFIG.crimes.minThugs, CONFIG.crimes.maxThugs));
+    const shape = COMPOSITION[kind];
+    const count = Math.round(randRange(this.rng, shape.min, shape.max));
     for (let i = 0; i < count; i++) {
       const roll = this.rng();
-      const kind: ThugKind = roll < 0.18 ? 'BRUTE' : roll < 0.45 ? 'GUNNER' : 'ENFORCER';
+      // Named apart from the crime's own `kind`, which is in scope here.
+      const thugKind: ThugKind = roll < shape.brute ? 'BRUTE' : roll < shape.gunner ? 'GUNNER' : 'ENFORCER';
       const angle = (i / count) * Math.PI * 2;
       const radius = randRange(this.rng, 3, 9);
       const thug = this.spawnThug(
-        kind,
+        thugKind,
         crime.pos.x + Math.cos(angle) * radius,
         crime.pos.y,
         crime.pos.z + Math.sin(angle) * radius,
@@ -481,6 +548,24 @@ export class ThugSystem implements TargetProvider {
     crime.resolved = true;
     this.pendingReap = true;
     this.onCrimeResolved?.(crime);
+  }
+
+  /**
+   * Gives up every crime the player had joined.
+   *
+   * Called when the player goes down. These would eventually lapse on their
+   * own through the abandon timer, since respawning puts the player a long way
+   * off — but "eventually and invisibly" is not a cost. Losing them at the
+   * moment of defeat is.
+   */
+  abandonEngaged(): number {
+    let lost = 0;
+    for (const crime of this.crimes) {
+      if (crime.resolved || !crime.engaged) continue;
+      this.despawnCrime(crime);
+      lost++;
+    }
+    return lost;
   }
 
   /** Retires an abandoned crime; `reap` clears the bodies. */

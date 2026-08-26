@@ -21,8 +21,12 @@ const {
   CHAPTER_BEATS,
   AMBIENT,
   DISPATCH,
+  CRIME_LOST,
+  CRIME_KINDS,
   TURN,
   PRESSURE,
+  DEFEAT,
+  FALL,
   BOOK_ENDINGS,
   SIEGE,
   THREADS,
@@ -33,9 +37,10 @@ const {
 } = await bundle(
   [
     ['{ BOOKS, requiredHeroFor }', 'src/game/GameMode'],
+    ['{ CRIME_KINDS }', 'src/enemies/ThugSystem'],
     ['{ VOICE_LINES }', 'src/audio/Voice'],
     [
-      '{ CHAPTER_BEATS, AMBIENT, DISPATCH, TURN, PRESSURE, BOOK_ENDINGS, SIEGE, THREADS, STORY_LINES, StoryDirector, speakerColor, speakerName }',
+      '{ CHAPTER_BEATS, AMBIENT, DISPATCH, CRIME_LOST, TURN, PRESSURE, DEFEAT, FALL, BOOK_ENDINGS, SIEGE, THREADS, STORY_LINES, StoryDirector, speakerColor, speakerName }',
       'src/game/Story',
     ],
   ],
@@ -258,8 +263,13 @@ console.log('[7] recorded-clip indices');
   for (const thread of THREADS) {
     thread.beats.forEach((script, i) => checkScript(script, `${thread.title}.${i}`));
   }
+  for (const [villain, script] of Object.entries(DEFEAT)) checkScript(script, `DEFEAT.${villain}`);
+  checkScript(FALL, 'FALL');
   for (const entry of AMBIENT) checkScript(entry.script, 'ambient');
-  DISPATCH.forEach((script, i) => checkScript(script, `dispatch.${i}`));
+  for (const [kind, scripts] of Object.entries(DISPATCH)) {
+    scripts.forEach((script, i) => checkScript(script, `dispatch.${kind}.${i}`));
+  }
+  CRIME_LOST.forEach((script, i) => checkScript(script, `crime-lost.${i}`));
   for (const speaker of Object.keys(STORY_LINES)) {
     const bank = STORY_LINES[speaker];
     if (new Set(bank).size !== bank.length) fail(`${speaker} bank has duplicate lines — indices are ambiguous`);
@@ -289,8 +299,40 @@ console.log('[8] radio and dispatch');
   // book of the game — which is exactly when the player is deciding whether
   // this city has anyone living in it.
   if (!AMBIENT.some((e) => e.book === 0)) fail('nothing on the radio in Book One');
-  if (DISPATCH.length < 4) fail('too few dispatch callouts — they will repeat immediately');
-  if (!bad) ok(`${AMBIENT.length} radio segments across ${books} books, ${DISPATCH.length} dispatch callouts`);
+  // Dispatch is keyed by what is actually happening, so a kind with no calls
+  // is a crime the radio cannot describe — and the fallback is silence, which
+  // reads as the radio being broken rather than as that crime being quiet.
+  let calls = 0;
+  for (const kind of CRIME_KINDS) {
+    const scripts = DISPATCH[kind];
+    if (!scripts || scripts.length === 0) {
+      fail(`no dispatch call for a ${kind} — the radio cannot announce it`);
+      bad++;
+      continue;
+    }
+    calls += scripts.length;
+    for (const script of scripts) {
+      for (const [who] of script) {
+        if (!KNOWN_SPEAKERS.has(who)) {
+          fail(`dispatch for ${kind} has unknown speaker ${who}`);
+          bad++;
+        }
+      }
+    }
+  }
+  for (const kind of Object.keys(DISPATCH)) {
+    if (!CRIME_KINDS.includes(kind)) {
+      fail(`dispatch written for "${kind}", which is not a crime kind`);
+      bad++;
+    }
+  }
+  if (CRIME_LOST.length < 2) fail('losing a crime has almost nothing to say about it');
+  if (!bad) {
+    ok(
+      `${AMBIENT.length} radio segments across ${books} books, ` +
+        `${calls} dispatch calls over ${CRIME_KINDS.length} crime kinds`,
+    );
+  }
 }
 
 // --- 9. house style -------------------------------------------------------
@@ -350,6 +392,16 @@ console.log('[11] the rest of the story');
     }
   }
 
+  // Going down used to be silent, which is how a player loses a fight without
+  // noticing. Whoever did it has to have a line.
+  for (const villain of VILLAINS) {
+    if (!DEFEAT[villain]) {
+      fail(`${villain} says nothing when they put the player down`);
+      bad++;
+    }
+  }
+  if (!FALL || FALL.length === 0) fail('falling out of the world says nothing');
+
   // One ending per book, and no ending for a book that does not exist.
   const bookTitles = new Set(BOOKS.map((b) => b.title));
   for (const book of BOOKS) {
@@ -397,7 +449,7 @@ console.log('[11] the rest of the story');
   const threadBeats = THREADS.reduce((n, t) => n + t.beats.length, 0);
   if (!bad) {
     ok(
-      `${VILLAINS.length} villains talk mid-fight and under pressure, ` +
+      `${VILLAINS.length} villains talk mid-fight, under pressure and over a body, ` +
         `${BOOKS.length} book endings, ${SIEGE.length} siege segments, ` +
         `${THREADS.length} threads over ${threadBeats} beats`,
     );

@@ -1,4 +1,5 @@
 import type { VillainKind } from '../enemies/EnemySystem';
+import type { CrimeKind } from '../enemies/ThugSystem';
 import type { HeroId } from './Heroes';
 
 /**
@@ -740,14 +741,40 @@ export const AMBIENT: readonly Ambient[] = [
   { book: 6, script: [['MAY', 'The doors here stay open. Whoever needs them. Whichever of you needs them.']] },
 ];
 
-/** Police-radio callouts, one line each, played when a crime opens up. */
-export const DISPATCH: readonly Script[] = [
-  [['YURI', 'Robbery in progress. Nearest unit is nine minutes out. That is your cue.']],
-  [['YURI', 'Assault, two blocks north of you. Go.']],
-  [['YURI', 'Shots called in. No injuries yet, and I would like to keep it that way.']],
-  [['YURI', 'They are hitting a shop front in the open. They are not even hiding any more.']],
-  [['YURI', 'Same crew, third call tonight. Somebody is paying them to stay busy.']],
-  [['YURI', 'Break-in with a crowd watching. Make it quick and make it look easy.']],
+/**
+ * Police-radio callouts, keyed by what is actually happening.
+ *
+ * Dispatch used to read from one flat list, so the radio described a mugging
+ * and a heist in the same words. Keying it by kind means the call tells the
+ * player what they are flying into — which is the only reason to have a radio.
+ */
+export const DISPATCH: Readonly<Record<CrimeKind, readonly Script[]>> = {
+  MUGGING: [
+    [['YURI', 'Assault in progress, two blocks north of you. Somebody is on the ground.']],
+    [['YURI', 'Mugging called in by a neighbour. Nearest unit is nine minutes out. That is your cue.']],
+  ],
+  SHAKEDOWN: [
+    [['YURI', 'They are leaning on a shop front in the open. They are not even hiding any more.']],
+    [['YURI', 'Same crew, third call tonight. Somebody is paying them to stay busy.']],
+  ],
+  HEIST: [
+    [['YURI', 'Crew mid-job and armed. If they get to the street they are gone.']],
+    [['YURI', 'Shots called in. No injuries yet, and I would like to keep it that way.']],
+  ],
+  AMBUSH: [
+    [['YURI', 'Four of them on a roof and nothing to rob. That is a welcome party.']],
+    [['YURI', 'This one is waiting for you. Go in expecting it.']],
+  ],
+};
+
+/** When the clock runs out. Said once, without labouring it. */
+export const CRIME_LOST: readonly Script[] = [
+  [['YURI', 'They are gone. It happens. Next one.']],
+  [
+    ['YURI', 'We lost that one.'],
+    ['HERO', 'I know.'],
+  ],
+  [['YURI', 'Too slow. Do not carry it — there is another call already.']],
 ];
 
 // ------------------------------------------------------------- in the fight
@@ -794,6 +821,39 @@ export const PRESSURE: Partial<Record<VillainKind, Script>> = {
     ['MILES', 'Then do not.'],
   ],
 };
+
+/**
+ * What is said when the player goes down.
+ *
+ * Losing used to be completely silent — the same full-health teleport whether
+ * you had been beaten by Venom or had simply missed a web — so a player could
+ * lose a fight without registering that anything had happened. The villain who
+ * did it gets the last word, which is both the story beat and the clearest
+ * possible statement of what just went wrong.
+ */
+export const DEFEAT: Partial<Record<VillainKind, Script>> = {
+  'BLACK CAT': [
+    ['BLACK CAT', 'Oh, get up. You are embarrassing us both.'],
+    ['YURI', 'Spider-Man. Answer me.'],
+  ],
+  ELECTRO: [['ELECTRO', 'Now you know. Now you know what it felt like.']],
+  SANDMAN: [
+    ['SANDMAN', 'I told you to stay down.'],
+    ['YURI', 'Fall back. That is an order I cannot give you, but fall back.'],
+  ],
+  VENOM: [['VENOM', 'Sleep. We will still be hungry when you wake.']],
+  'GREEN GOBLIN': [['GREEN GOBLIN', 'Marvellous. Do get up, I was enjoying that.']],
+  'SYMBIOTE PETER': [
+    ['SYMBIOTE PETER', 'I did not want to do that.'],
+    ['MILES', 'Yes you did.'],
+  ],
+};
+
+/** Nobody beat you — the city did. */
+export const FALL: Script = [
+  ['YURI', 'We lost you off the radio for a moment there. Say something.'],
+  ['HERO', 'Still here. Mostly.'],
+];
 
 // ------------------------------------------------------------- book endings
 
@@ -985,14 +1045,16 @@ function buildBanks(): Record<string, string[]> {
       for (const script of Object.values(table ?? {})) if (script) addScript(script);
     }
   }
-  for (const table of [TURN, PRESSURE]) {
+  for (const table of [TURN, PRESSURE, DEFEAT]) {
     for (const script of Object.values(table)) if (script) addScript(script);
   }
+  addScript(FALL);
   for (const script of Object.values(BOOK_ENDINGS)) addScript(script);
   for (const script of SIEGE) addScript(script);
   for (const thread of THREADS) for (const script of thread.beats) addScript(script);
   for (const entry of AMBIENT) addScript(entry.script);
-  for (const script of DISPATCH) addScript(script);
+  for (const scripts of Object.values(DISPATCH)) for (const script of scripts) addScript(script);
+  for (const script of CRIME_LOST) addScript(script);
   return banks;
 }
 

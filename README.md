@@ -157,7 +157,8 @@ src/
 └── ui/
     ├── HUD.ts               DOM overlay binding
     ├── Settings.ts          Persisted user settings
-    └── SettingsPanel.ts     Settings UI
+    ├── SettingsPanel.ts     Settings UI
+    └── Tips.ts              First-time prompts, shown once each
 
 tests/                       Verification suites (see Tests above)
 scripts/
@@ -208,6 +209,61 @@ Barks themselves are driven from state transitions in `Game.updateBarks`,
 throttled by a global cooldown plus a per-event cooldown, and never repeat the
 previous line. Every line is mirrored to an on-screen subtitle, so the whole
 system degrades cleanly when audio is unavailable or muted (`M`).
+
+### Losing
+
+You used to be unable to. Dying restored full health, granted triple
+invulnerability, moved you to the tallest building in the middle of the map and
+told no other system it had happened — so every boss was a bucket you emptied
+across as many lives as it took, and a player could lose a fight badly without
+registering that anything had gone wrong.
+
+Going down now costs three things. Everyone still standing recovers a third of
+their health, which is what turns attrition back into a fight you can lose.
+Whoever put you there says so. And the call you were on is lost. You come back a
+couple of streets from where you fell rather than across the map, because the
+punishment should be the fight you have to do again, not the flight back to it.
+
+Relief is scoped to the villains actually in that fight — free roam has the
+whole roster live at once, and handing health to six bosses across the city
+because a mugger got lucky is not a difficulty curve.
+
+### Crime
+
+Street crime is the thing the campaign asks for around sixty times, and it used
+to be one encounter: some thugs, kill them all, no clock, no way to do it badly.
+There are four kinds now, rotated rather than rolled so a run of the same one is
+impossible:
+
+| Kind | Who | Clock | Worth |
+| --- | --- | --- | --- |
+| `MUGGING` | 2–4, mostly enforcers | 45s | 1.0× |
+| `SHAKEDOWN` | 4–6, mixed | 60s | 1.15× |
+| `HEIST` | 4–6, gunner-heavy | 70s | 1.5× |
+| `AMBUSH` | 3–5, brutes | none | 1.35× |
+
+The clock starts when you arrive, not when the crime spawns — running it from
+the moment a crime exists would fail calls on the far side of the map that you
+were never told about. Run out and the crew is gone: no experience, no progress
+toward the chapter, and Watanabe says so. The time remaining is always in the
+tracker, including during boss chapters, where crimes still spawn and can still
+be lost.
+
+### Learning it
+
+There are about twenty verbs — swing, reel, zip, glide, wall-run, charge jump,
+sprint, punch, dodge, finisher, gadget, heal, surge, swap — and the game's
+entire explanation of them was a panel in the corner and a second panel hidden
+behind `L`. A player who does not read the corner never learns that dodging
+exists.
+
+`Tips.ts` introduces each one at the first moment it becomes the useful thing to
+do: the first villain teaches the dodge, the first time health runs low teaches
+healing, the first unspent point teaches the skill menu. Each fires once, ever.
+Seen prompts live in their own storage key rather than in the campaign save,
+because they record what the *player* has learned, not what the character has
+done — starting a new game should not re-explain the controls to somebody who
+has been playing for an hour. Erasing the save brings them back.
 
 ### The story layer
 
