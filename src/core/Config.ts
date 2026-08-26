@@ -785,6 +785,14 @@ export const CONFIG = {
     calmRadius: 150,
     /** Extra seconds a scripted line holds the bark channel after it ends. */
     lineTail: 0.6,
+    /** Cleared crimes between one side-thread beat and the next. */
+    threadEvery: 4,
+    /**
+     * Seconds two villains must share a rooftop before they talk to each
+     * other. Long enough that the fight has started, short enough to still be
+     * about this fight.
+     */
+    banterDelay: 6,
   },
 
   traversal: {

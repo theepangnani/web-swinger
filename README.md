@@ -70,7 +70,7 @@ npm test rematch        # just the suites whose filename matches
 | `static-checks.cjs` | Source-text invariants across every `.ts` file: DOM ids the HUD binds to, config keys that must exist, patterns that have regressed before. |
 | `campaign.mjs` | Walks all 39 chapters. No chapter may be skipped, stall, or complete early. Includes the surplus-crime and legacy-save-migration cases. |
 | `books.mjs` | Story shape: every book ends on a boss, difficulty climbs, the last book fields everyone. |
-| `story.mjs` | Chapter dialogue: every beat reaches the player, none is written for a villain or partner who is not in the scene. |
+| `story.mjs` | Chapter dialogue: every beat reaches the player, none is written for a villain or partner who is not in the scene, and nothing addresses Miles on a night you could be Peter. |
 | `rematch.mjs` | A chapter can only ever field the villain it named — the boss-marathon regression. |
 | `numeric.mjs` | The day/night clock keeps running past one cycle, and the world never goes pitch dark. |
 | `joints.mjs` | Villain limb geometry sits exactly where it was authored. |
@@ -187,10 +187,20 @@ reordering the books cannot silently detach dialogue from the chapter it was
 written for; `tests/story.mjs` enforces that those titles stay unique and that
 no beat is written for a villain or partner the chapter never fields.
 
+Inside a fight, a villain speaks when it **turns** — the first time they drop
+below half health — and again when **you** are nearly down, which is a story
+beat and a read on the fight at the same time. Where two of them share a
+rooftop they talk to **each other** a few seconds in. Each book gets a closing
+scene of its own, and the post-game siege, which used to run in total silence,
+gets one segment per wave.
+
 Around the campaign sits **the radio**: Watanabe calling crimes in, Jameson
 ranting, and May, MJ, Ganke, Rio and Danika filling genuine calm. Radio
 segments are gated on how far through the books you are, so the city is never
-overheard discussing something you have not reached.
+overheard discussing something you have not reached. Underneath that run four
+**side threads** — F.E.A.S.T., Danika's podcast, MJ's Osborn piece, Harlem —
+which advance on cleared crime rather than on chapters, so they are the one
+part of the story you can outrun by rushing the books.
 
 Three rules keep it from becoming noise:
 
@@ -200,8 +210,12 @@ Three rules keep it from becoming noise:
 - **Written dialogue outranks everything.** `Voice.hold` suppresses barks for
   as long as a line is on screen, and a bark's `force` flag does not get past
   it — a boss taunt landing inside a closing exchange reads as a bug.
-- **Ambient chatter yields.** The radio is dropped outright whenever anything
-  else is waiting, and only speaks when no fight is running.
+- **Ambient chatter yields.** The radio, the side threads and villain
+  cross-talk are all dropped outright whenever anything else is waiting, and
+  only speak when no fight is within `CONFIG.story.calmRadius`. A scene that is
+  refused is retried rather than marked as played — latching on the attempt
+  instead of the result throws it away every time, since the queue is busiest
+  exactly when these want to speak.
 
 Story lines are folded into `VOICE_LINES` as a `story` event, so
 `scripts/make-voices.mjs` renders them into a clip pack exactly like barks —

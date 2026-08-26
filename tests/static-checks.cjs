@@ -232,5 +232,87 @@ if (!/pinArrival/.test(dayNight) || !/this\.pinned = null;/.test(dayNight.split(
 }
 console.log('  progress replays the event log; the chapter pin releases on arrival');
 
+// --- 10. story wiring -----------------------------------------------------
+// Every one of these is a bug that was actually shipped into the working tree
+// and found by reading, not by a crash. They share a shape: the game keeps
+// running, and a line simply never reaches the player.
+console.log('[10] story wiring');
+{
+  const story = read(path.join(ROOT, 'src/game/Story.ts'));
+  const hud = read(path.join(ROOT, 'src/ui/HUD.ts'));
+
+  // The queue cap must clear a full chapter transition. At four it dropped the
+  // incoming boss's entrance and often the whole opening exchange.
+  const cap = story.match(/MAX_QUEUED = (\d+)/);
+  if (!cap) fail('the director has no queue cap');
+  else if (Number(cap[1]) < 8) fail(`director queue cap is ${cap[1]}; a chapter transition needs 7`);
+
+  // Subtitles have to be able to outlast a bark, or long lines lose their text
+  // partway through being read aloud.
+  if (!/showSubtitle\([^)]*seconds\?: number/s.test(hud)) {
+    fail('HUD.showSubtitle takes no duration — long story lines will be cut short');
+  }
+
+  // A bark posted before a written line is overwritten a frame later.
+  if (/say\('villain_down', true\);\s*\n\s*this\.playBeat/.test(gameSrc)) {
+    fail('the villain-down bark is fired before the written line again');
+  }
+  if (!/if \(!this\.story\.busy\) this\.voice\.say\('villain_down', true\)/.test(gameSrc)) {
+    fail('the villain-down bark no longer stands aside for written dialogue');
+  }
+
+  // The clear-city line must latch on the line going out, not on the attempt.
+  if (!/if \(this\.voice\.say\('all_clear', true\)\) \{/.test(gameSrc)) {
+    fail('all_clear is latched on the attempt again — suppressed once means lost forever');
+  }
+
+  // Three things the director owns that must not be written straight to the
+  // HUD, because a queued line will paint over them.
+  for (const [label, pattern] of [
+    ['the chapter card', /showSubtitle\(this\.campaign\.progressLabel[\s\S]{0,80}\)/g],
+    ['the siege tier', /showSubtitle\(\s*`SIEGE/g],
+  ]) {
+    const hits = (gameSrc.match(pattern) || []).length;
+    // The chapter card has exactly one legitimate direct write: restoring a
+    // save, where nothing is queued and nothing is owed.
+    const allowed = label === 'the chapter card' ? 1 : 0;
+    if (hits > allowed) fail(`${label} is written straight to the HUD (${hits} site(s), ${allowed} allowed)`);
+  }
+
+  // Both the director and the bark system have to be told who the hero is.
+  const setHero = (gameSrc.match(/this\.voice\.setHero\(/g) || []).length;
+  const setStory = (gameSrc.match(/this\.story\.setHero\(/g) || []).length;
+  if (setStory < setHero) {
+    fail(`voice.setHero is called ${setHero}x but story.setHero only ${setStory}x — HERO will resolve to the wrong hero`);
+  }
+
+  // Ambient chatter gated on "any villain alive" starves free roam, which
+  // brings the whole roster out at once.
+  if (/this\.enemies\.remaining > 0\) \{\s*\n\s*this\.ambientTimer/.test(gameSrc)) {
+    fail('ambient radio is gated on the whole roster again — free roam will never hear it');
+  }
+
+  // Side threads must stand aside for the main story rather than queue behind it.
+  if (!/thread\.beats\[done\]!, 'AMBIENT'/.test(gameSrc)) {
+    fail('side-thread beats no longer yield to written chapter dialogue');
+  }
+
+  // Reloading in the siege must not be worth a free tier.
+  if (!/resumeTier/.test(gameSrc)) fail('the siege escalates on reload again');
+
+  // Latching a scene on the attempt rather than the result throws it away
+  // whenever the queue is busy, which for these two is almost always.
+  if (!/if \(this\.story\.play\(banter, 'AMBIENT'\)\) this\.banterPlayed = true/.test(gameSrc)) {
+    fail('villain cross-talk is latched on the attempt — it will be dropped and never retried');
+  }
+  if (!/if \(this\.story\.play\(PRESSURE\[villain\.kind\]\)\) this\.pressureSaid = true/.test(gameSrc)) {
+    fail('the pressure taunt is latched on the attempt');
+  }
+
+  console.log('  ok — director owns the cards, barks stand aside, nothing latches on a refused scene');
+}
+
+console.log('');
+
 console.log(problems === 0 ? 'ALL CHECKS PASSED' : `${problems} PROBLEM(S) FOUND`);
 process.exit(problems === 0 ? 0 : 1);

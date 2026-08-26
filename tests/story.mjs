@@ -12,17 +12,40 @@
  */
 import { bundle } from './_bundle.mjs';
 
-const { BOOKS, CHAPTER_BEATS, AMBIENT, DISPATCH, STORY_LINES, StoryDirector, speakerColor, speakerName } =
-  await bundle(
+const {
+  BOOKS,
+  requiredHeroFor,
+  CHAPTER_BEATS,
+  AMBIENT,
+  DISPATCH,
+  TURN,
+  PRESSURE,
+  BOOK_ENDINGS,
+  SIEGE,
+  THREADS,
+  STORY_LINES,
+  StoryDirector,
+  speakerColor,
+  speakerName,
+} = await bundle(
+  [
+    ['{ BOOKS, requiredHeroFor }', 'src/game/GameMode'],
     [
-      ['{ BOOKS }', 'src/game/GameMode'],
-      [
-        '{ CHAPTER_BEATS, AMBIENT, DISPATCH, STORY_LINES, StoryDirector, speakerColor, speakerName }',
-        'src/game/Story',
-      ],
+      '{ CHAPTER_BEATS, AMBIENT, DISPATCH, TURN, PRESSURE, BOOK_ENDINGS, SIEGE, THREADS, STORY_LINES, StoryDirector, speakerColor, speakerName }',
+      'src/game/Story',
     ],
-    'story',
-  );
+  ],
+  'story',
+);
+
+const VILLAINS = ['BLACK CAT', 'ELECTRO', 'SANDMAN', 'VENOM', 'GREEN GOBLIN', 'SYMBIOTE PETER'];
+/** Book Six is the first book that guarantees you are playing Miles. */
+const MILES_BOOK = 5;
+
+/** Whether a script puts words in Miles' mouth, or in the mouth of his family. */
+function mentionsMiles(script) {
+  return script.some(([who, text]) => who === 'MILES' || who === 'RIO' || /\bMiles\b/.test(text));
+}
 
 const HERO_LOCKED = new Set(['SYMBIOTE PETER']);
 
@@ -57,8 +80,8 @@ const KNOWN_SPEAKERS = new Set([
 /** Every script in a chapter's beats, tagged with where it came from. */
 function scriptsOf(beats) {
   const out = [];
-  for (const key of ['open', 'mid', 'close']) if (beats[key]) out.push([key, beats[key]]);
-  for (const key of ['meet', 'down']) {
+  for (const key of ['open', 'mid', 'close', 'banter']) if (beats[key]) out.push([key, beats[key]]);
+  for (const key of ['meet', 'turn', 'down']) {
     for (const [villain, script] of Object.entries(beats[key] ?? {})) out.push([`${key}.${villain}`, script]);
   }
   return out;
@@ -113,10 +136,25 @@ console.log('[4] boss beats match the chapter roster');
   for (const c of CHAPTERS) {
     const beats = CHAPTER_BEATS[c.title] ?? {};
     const roster = new Set(c.villains);
-    for (const key of ['meet', 'down']) {
+    for (const key of ['meet', 'turn', 'down']) {
       for (const villain of Object.keys(beats[key] ?? {})) {
         if (!roster.has(villain)) {
           fail(`"${c.title}" has a ${key} beat for ${villain}, who never appears in it`);
+          mismatched++;
+        }
+      }
+    }
+    // Cross-talk needs two villains to talk to, and everyone in it has to be
+    // on the roof: a banter line from an absent villain is a scene with a
+    // speaker who is not in it.
+    if (beats.banter) {
+      if (c.villains.length < 2) {
+        fail(`"${c.title}" has villain cross-talk but fields ${c.villains.length} villain(s)`);
+        mismatched++;
+      }
+      for (const [who] of beats.banter) {
+        if (who !== 'HERO' && who !== 'PARTNER' && !roster.has(who)) {
+          fail(`"${c.title}" cross-talk has ${who}, who is not in the fight`);
           mismatched++;
         }
       }
@@ -190,19 +228,34 @@ console.log('[7] recorded-clip indices');
       missing++;
     }
   };
-  for (const c of CHAPTERS) {
-    for (const [where, script] of scriptsOf(CHAPTER_BEATS[c.title] ?? {})) {
-      for (const [who, text] of script) {
-        // HERO and PARTNER can each be either hero, so both banks must carry it.
-        if (who === 'HERO' || who === 'PARTNER') {
-          check('PETER', text, `${c.title} ${where}`);
-          check('MILES', text, `${c.title} ${where}`);
-        } else {
-          check(who, text, `${c.title} ${where}`);
-        }
+  const checkScript = (script, where) => {
+    for (const [who, text] of script) {
+      // HERO and PARTNER can each be either hero, so both banks must carry it.
+      if (who === 'HERO' || who === 'PARTNER') {
+        check('PETER', text, where);
+        check('MILES', text, where);
+      } else {
+        check(who, text, where);
       }
     }
+  };
+  for (const c of CHAPTERS) {
+    for (const [where, script] of scriptsOf(CHAPTER_BEATS[c.title] ?? {})) {
+      checkScript(script, `${c.title} ${where}`);
+    }
   }
+  // Every bank that is not hung off a chapter. Missing one here is the exact
+  // failure this section exists for: the lines play, the subtitles are right,
+  // and a recorded clip pack plays somebody else's line underneath them.
+  for (const [villain, script] of Object.entries(TURN)) checkScript(script, `TURN.${villain}`);
+  for (const [villain, script] of Object.entries(PRESSURE)) checkScript(script, `PRESSURE.${villain}`);
+  for (const [book, script] of Object.entries(BOOK_ENDINGS)) checkScript(script, `ending.${book}`);
+  SIEGE.forEach((script, i) => checkScript(script, `siege.${i}`));
+  for (const thread of THREADS) {
+    thread.beats.forEach((script, i) => checkScript(script, `${thread.title}.${i}`));
+  }
+  for (const entry of AMBIENT) checkScript(entry.script, 'ambient');
+  DISPATCH.forEach((script, i) => checkScript(script, `dispatch.${i}`));
   for (const speaker of Object.keys(STORY_LINES)) {
     const bank = STORY_LINES[speaker];
     if (new Set(bank).size !== bank.length) fail(`${speaker} bank has duplicate lines — indices are ambiguous`);
@@ -274,8 +327,137 @@ console.log('[10] subtitle presentation');
   if (!bad) ok('every speaker has a colour and a display name');
 }
 
-// --- 11. the director -----------------------------------------------------
-console.log('[11] director');
+// --- 11. mid-fight, book endings, siege and threads ----------------------
+console.log('[11] the rest of the story');
+{
+  let bad = 0;
+
+  // Every villain must have both, or the fight goes quiet for whoever is
+  // missing — and these are the banks that cover free roam and the siege,
+  // where there is no chapter to fall back on.
+  for (const villain of VILLAINS) {
+    if (!TURN[villain]) {
+      fail(`${villain} has nothing to say when the fight turns`);
+      bad++;
+    }
+    if (!PRESSURE[villain]) {
+      fail(`${villain} has nothing to say when the player is nearly down`);
+      bad++;
+    }
+  }
+
+  // One ending per book, and no ending for a book that does not exist.
+  const bookTitles = new Set(BOOKS.map((b) => b.title));
+  for (const book of BOOKS) {
+    if (!BOOK_ENDINGS[book.title]) {
+      fail(`${book.title} ends without a word`);
+      bad++;
+    }
+  }
+  for (const title of Object.keys(BOOK_ENDINGS)) {
+    if (!bookTitles.has(title)) {
+      fail(`there is an ending for "${title}", which is not a book`);
+      bad++;
+    }
+  }
+
+  if (SIEGE.length < 4) {
+    fail('the post-game has almost nothing to say');
+    bad++;
+  }
+
+  // Threads are keyed by title in the save, so duplicates would share progress.
+  const seen = new Set();
+  for (const thread of THREADS) {
+    if (seen.has(thread.title)) {
+      fail(`two threads are called "${thread.title}" — they would share saved progress`);
+      bad++;
+    }
+    seen.add(thread.title);
+    if (thread.book < 0 || thread.book >= BOOKS.length) {
+      fail(`thread "${thread.title}" is gated on book ${thread.book}, which does not exist`);
+      bad++;
+    }
+    if (thread.beats.length < 2) {
+      fail(`thread "${thread.title}" is not an arc, it is one line`);
+      bad++;
+    }
+    for (const beat of thread.beats) {
+      if (!beat.length) {
+        fail(`thread "${thread.title}" has an empty beat`);
+        bad++;
+      }
+    }
+  }
+
+  const threadBeats = THREADS.reduce((n, t) => n + t.beats.length, 0);
+  if (!bad) {
+    ok(
+      `${VILLAINS.length} villains talk mid-fight and under pressure, ` +
+        `${BOOKS.length} book endings, ${SIEGE.length} siege segments, ` +
+        `${THREADS.length} threads over ${threadBeats} beats`,
+    );
+  }
+}
+
+// --- 12. lines cannot be put in the wrong hero's mouth -------------------
+console.log('[12] Miles-specific dialogue is gated');
+{
+  // Book Six is the first book that forces Miles. Anything that addresses him
+  // by name, or that comes from his mother, is wrong on a night the player
+  // chose to be Peter — and the failure is silent: the line simply plays to
+  // the wrong person.
+  let bad = 0;
+
+  for (const c of CHAPTERS) {
+    for (const [where, script] of scriptsOf(CHAPTER_BEATS[c.title] ?? {})) {
+      if (mentionsMiles(script) && c.forceHero !== 'MILES') {
+        fail(`"${c.title}" ${where} names Miles, but the chapter does not force him`);
+        bad++;
+      }
+    }
+  }
+
+  for (const entry of AMBIENT) {
+    if (mentionsMiles(entry.script) && entry.book < MILES_BOOK) {
+      fail(`a radio segment names Miles but unlocks in book ${entry.book}`);
+      bad++;
+    }
+  }
+
+  for (const thread of THREADS) {
+    if (thread.beats.some(mentionsMiles) && thread.book < MILES_BOOK) {
+      fail(`thread "${thread.title}" names Miles but unlocks in book ${thread.book}`);
+      bad++;
+    }
+  }
+
+  // A book ending plays immediately after that book's last chapter, so the
+  // hero is whoever that chapter forced.
+  for (const book of BOOKS) {
+    const ending = BOOK_ENDINGS[book.title];
+    if (!ending || !mentionsMiles(ending)) continue;
+    const last = book.chapters[book.chapters.length - 1];
+    if (last.forceHero !== 'MILES') {
+      fail(`${book.title} ends on a line naming Miles, but "${last.title}" does not force him`);
+      bad++;
+    }
+  }
+
+  // The global banks have no chapter behind them. A Miles line in one is only
+  // safe if the villain it belongs to forces Miles wherever they appear.
+  for (const [villain, script] of Object.entries({ ...TURN, ...PRESSURE })) {
+    if (mentionsMiles(script) && requiredHeroFor(villain) !== 'MILES') {
+      fail(`${villain} has a Miles line but does not force Miles into the fight`);
+      bad++;
+    }
+  }
+
+  if (!bad) ok('nothing addresses Miles on a night the player could be Peter');
+}
+
+// --- 13. the director -----------------------------------------------------
+console.log('[13] director');
 {
   const drain = (d, steps = 400) => {
     const said = [];
@@ -426,8 +608,8 @@ console.log('[11] director');
   }
 }
 
-// --- 12. hero-locked chapters --------------------------------------------
-console.log('[12] hero-locked chapters');
+// --- 14. hero-locked chapters --------------------------------------------
+console.log('[14] hero-locked chapters');
 {
   // A chapter fielding a villain who *is* one of the heroes forces the other
   // one and cancels the partner. Dialogue written against HERO resolves to

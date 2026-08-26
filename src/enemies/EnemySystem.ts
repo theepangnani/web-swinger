@@ -124,6 +124,14 @@ export interface Villain {
    * all three bosses live at once.
    */
   dormant: boolean;
+  /**
+   * True once this fight has crossed the halfway mark.
+   *
+   * A latch, not a comparison: the point of it is to fire the villain's
+   * mid-fight line exactly once, and health can cross the threshold more than
+   * once where a boss guards, reforms or is revived.
+   */
+  turned: boolean;
 }
 
 const _v1 = new THREE.Vector3();
@@ -222,6 +230,13 @@ export class EnemySystem implements TargetProvider {
   onProjectileBurst: ((kind: ProjectileKind) => void) | null = null;
   /** Raised when a villain's health reaches zero. */
   onDefeated: ((villain: Villain) => void) | null = null;
+  /**
+   * Raised once per fight, the first time a villain drops below half health.
+   *
+   * The moment a boss fight turns is the one point in it with anything new to
+   * say, and there was no way to know it had happened from outside.
+   */
+  onTurn: ((villain: Villain) => void) | null = null;
 
   private readonly activeTargets: CombatTarget[] = [];
   private readonly bolts: Bolt[] = [];
@@ -367,6 +382,7 @@ export class EnemySystem implements TargetProvider {
     fallen.webbed = 0;
     fallen.hitFlash = 0;
     fallen.arenaActive = false;
+    fallen.turned = false;
     return fallen;
   }
 
@@ -399,6 +415,7 @@ export class EnemySystem implements TargetProvider {
     villain.hitRadius = villain.hitRadiusUnit * villain.baseScale;
     villain.vel.set(0, 0, 0);
     villain.stamina = 1;
+    villain.turned = false;
     villain.damageScale = 1;
     villain.chargeTimer = 0;
     villain.sinceHit = 0;
@@ -1909,6 +1926,12 @@ export class EnemySystem implements TargetProvider {
     v.poiseTimer = CONFIG.enemies.poise.window;
     this.spawnImpact(v.pos, v.color, 3);
 
+    // The fight turning is worth saying out loud, and only the first time.
+    if (!v.turned && v.hp > 0 && v.hp < v.maxHp * 0.5) {
+      v.turned = true;
+      this.onTurn?.(v);
+    }
+
     if (v.hp <= 0) {
       v.alive = false;
       v.root.visible = false;
@@ -2046,6 +2069,7 @@ export class EnemySystem implements TargetProvider {
       stamina: 1,
       webbed: 0,
       dormant: true,
+      turned: false,
       damageScale: 1,
       sinceHit: 0,
       chargeTimer: 0,

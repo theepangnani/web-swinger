@@ -102,6 +102,18 @@ export interface ChapterBeats {
   readonly close?: Script;
   /** Plays when a villain the chapter named is brought into play. */
   readonly meet?: Partial<Record<VillainKind, Script>>;
+  /**
+   * Plays the first time that villain drops below half health, overriding the
+   * generic `TURN` bank. Written only for the fights where the turn means
+   * something specific — everywhere else the generic line is the better one,
+   * because it is the villain talking rather than the plot.
+   */
+  readonly turn?: Partial<Record<VillainKind, Script>>;
+  /**
+   * Two villains on the same roof talking to each other, once, shortly after
+   * both are in play. Only meaningful in a team-up.
+   */
+  readonly banter?: Script;
   /** Plays when one of them goes down. */
   readonly down?: Partial<Record<VillainKind, Script>>;
 }
@@ -186,6 +198,12 @@ export const CHAPTER_BEATS: Readonly<Record<string, ChapterBeats>> = {
       ['PARTNER', 'Then we let her reach it, and we follow her out.'],
       ['HERO', 'You have been reading my mail.'],
     ],
+    turn: {
+      'BLACK CAT': [
+        ['BLACK CAT', 'Two of you, and I am still ahead. Think about that.'],
+        ['PARTNER', 'She is not wrong.'],
+      ],
+    },
     meet: {
       'BLACK CAT': [
         ['BLACK CAT', 'Two of you. I am flattered and slightly insulted.'],
@@ -257,6 +275,9 @@ export const CHAPTER_BEATS: Readonly<Record<string, ChapterBeats>> = {
       ['PARTNER', 'Out, and charging. Somebody posted his bail inside an hour.'],
       ['HERO', 'Somebody with money and patience.'],
     ],
+    turn: {
+      ELECTRO: [['ELECTRO', 'You think grounding me ends it? It ends when they pay.']],
+    },
     meet: {
       ELECTRO: [
         ['ELECTRO', 'You brought a friend. I brought the grid.'],
@@ -319,6 +340,9 @@ export const CHAPTER_BEATS: Readonly<Record<string, ChapterBeats>> = {
       ['PARTNER', 'It came to my window last night. Not yours. Mine.'],
       ['HERO', 'Then it is choosing. That is worse.'],
     ],
+    turn: {
+      VENOM: [['VENOM', 'It hurts. Good. Now you know what we are.']],
+    },
     meet: {
       VENOM: [
         ['VENOM', 'Two of you. Better. We were still hungry.'],
@@ -372,6 +396,17 @@ export const CHAPTER_BEATS: Readonly<Record<string, ChapterBeats>> = {
     open: [
       ['HERO', 'She is on his payroll. She has been the whole time.'],
       ['PARTNER', 'And she has been handing us the truth on his money. That is not nothing.'],
+    ],
+    turn: {
+      'BLACK CAT': [['BLACK CAT', 'For the record, I am aiming badly on purpose.']],
+      'GREEN GOBLIN': [
+        ['GREEN GOBLIN', 'Felicia. Do something useful or I stop paying you.'],
+        ['BLACK CAT', 'I am busy.'],
+      ],
+    },
+    banter: [
+      ['GREEN GOBLIN', 'You were supposed to be a distraction, Felicia.'],
+      ['BLACK CAT', 'I am a very good one.'],
     ],
     meet: {
       'BLACK CAT': [
@@ -438,6 +473,15 @@ export const CHAPTER_BEATS: Readonly<Record<string, ChapterBeats>> = {
       ['PARTNER', 'The reservoir level is dropping. Fast.'],
       ['HERO', 'He is not hiding down there. He is drinking.'],
     ],
+    turn: {
+      SANDMAN: [['SANDMAN', 'Stop hitting my head. That is the only part that hurts.']],
+      'GREEN GOBLIN': [['GREEN GOBLIN', 'Deeper, Mister Marko! Take the whole block!']],
+    },
+    banter: [
+      ['GREEN GOBLIN', 'Faster, Mister Marko.'],
+      ['SANDMAN', 'I am not your dog.'],
+      ['GREEN GOBLIN', 'You are whatever I have paid for.'],
+    ],
     meet: {
       SANDMAN: [['SANDMAN', 'I only want to go home.']],
       'GREEN GOBLIN': [['GREEN GOBLIN', 'Then earn it, Mister Marko. Bury them and I will drive you there myself.']],
@@ -483,6 +527,12 @@ export const CHAPTER_BEATS: Readonly<Record<string, ChapterBeats>> = {
   },
   'Not Him': {
     open: [['MJ', 'Whatever is wearing him knows everything he knows. Including you.']],
+    turn: {
+      'SYMBIOTE PETER': [
+        ['SYMBIOTE PETER', 'You are still holding back. He would not have.'],
+        ['MILES', 'He would. That is the entire point of him.'],
+      ],
+    },
     meet: {
       'SYMBIOTE PETER': [
         ['SYMBIOTE PETER', 'There he is. The kid who was always going to be better than me.'],
@@ -500,6 +550,12 @@ export const CHAPTER_BEATS: Readonly<Record<string, ChapterBeats>> = {
       ['MJ', 'If you get him down, keep him down. It hates sound. High frequency, sustained.'],
       ['MILES', 'Understood.'],
     ],
+    turn: {
+      'SYMBIOTE PETER': [
+        ['SYMBIOTE PETER', 'The sound. Turn it off. Turn it off.'],
+        ['MILES', 'No.'],
+      ],
+    },
     meet: {
       'SYMBIOTE PETER': [['SYMBIOTE PETER', 'No more pretending to be him. He was slowing me down.']],
     },
@@ -516,6 +572,15 @@ export const CHAPTER_BEATS: Readonly<Record<string, ChapterBeats>> = {
       ['MILES', 'There are two of them now.'],
       ['MJ', 'Then it split.'],
       ['MILES', 'It multiplied.'],
+    ],
+    turn: {
+      VENOM: [['VENOM', 'The little one hits harder than the old one ever did.']],
+      'SYMBIOTE PETER': [['SYMBIOTE PETER', 'Miles. Do not stop.']],
+    },
+    banter: [
+      ['VENOM', 'Brother. Come away from him.'],
+      ['SYMBIOTE PETER', 'He is mine.'],
+      ['VENOM', 'Everything is ours.'],
     ],
     meet: {
       VENOM: [['VENOM', 'We are the older one. He is only a copy.']],
@@ -594,6 +659,14 @@ export const CHAPTER_BEATS: Readonly<Record<string, ChapterBeats>> = {
       ['RIO', 'Come home tonight, Miles.'],
       ['MILES', 'One roof. Both of them. Okay.'],
     ],
+    turn: {
+      'SYMBIOTE PETER': [['SYMBIOTE PETER', 'I can feel it letting go. Keep going.']],
+      'GREEN GOBLIN': [['GREEN GOBLIN', 'Stand up, Parker! I did not build you to lose!']],
+    },
+    banter: [
+      ['GREEN GOBLIN', 'Kill the boy and I will let you keep the man.'],
+      ['SYMBIOTE PETER', 'You do not get to give me anything.'],
+    ],
     meet: {
       'SYMBIOTE PETER': [['SYMBIOTE PETER', 'You keep saving me. Stop.']],
       'GREEN GOBLIN': [['GREEN GOBLIN', 'Finish each other and save me the trouble.']],
@@ -651,7 +724,7 @@ export const AMBIENT: readonly Ambient[] = [
   },
   { book: 3, script: [['JAMESON', 'Norman Osborn rebuilt six blocks out of his own pocket. Where were you? A roof!']] },
   { book: 3, script: [['MJ', 'Everything I file about Osborn comes back with the legal department attached.']] },
-  { book: 4, script: [['RIO', 'Miles, dinner is at seven, and the city can wait fifteen minutes for once.']] },
+  { book: 5, script: [['RIO', 'Miles, dinner is at seven, and the city can wait fifteen minutes for once.']] },
   { book: 4, script: [['GANKE', 'The quarry paperwork runs through four shell companies and then stops. Neat.']] },
   { book: 5, script: [['DANIKA', 'The friendly one has not been friendly lately, and I am not the only one saying it.']] },
   {
@@ -675,6 +748,207 @@ export const DISPATCH: readonly Script[] = [
   [['YURI', 'They are hitting a shop front in the open. They are not even hiding any more.']],
   [['YURI', 'Same crew, third call tonight. Somebody is paying them to stay busy.']],
   [['YURI', 'Break-in with a crowd watching. Make it quick and make it look easy.']],
+];
+
+// ------------------------------------------------------------- in the fight
+
+/**
+ * What a villain says when the fight turns against them.
+ *
+ * Fires once, the first time they drop below half health, and is the generic
+ * bank — a chapter with something specific to say at that moment overrides it
+ * with its own `turn`. Living here rather than only on chapters means free
+ * roam and the post-game siege get it too, which is most of the time a player
+ * spends fighting these six.
+ */
+export const TURN: Partial<Record<VillainKind, Script>> = {
+  'BLACK CAT': [['BLACK CAT', 'All right. You have my attention now.']],
+  ELECTRO: [['ELECTRO', 'You want to know what nine years feels like? Stand still.']],
+  SANDMAN: [['SANDMAN', 'You cannot hit what does not stay hit.']],
+  VENOM: [['VENOM', 'We bleed. We have never bled.']],
+  'GREEN GOBLIN': [['GREEN GOBLIN', 'Oh, this is marvellous. Do that again.']],
+  'SYMBIOTE PETER': [['SYMBIOTE PETER', 'Hit me properly or get out of my city.']],
+};
+
+/**
+ * What they say when *you* are nearly down.
+ *
+ * The moment a fight is going badly is the moment the game is least readable —
+ * a health bar in the corner is not much of a warning. A villain gloating is
+ * both a story beat and a very clear one.
+ */
+export const PRESSURE: Partial<Record<VillainKind, Script>> = {
+  'BLACK CAT': [
+    ['BLACK CAT', 'Stay down. I am serious, stay down.'],
+    ['YURI', 'Spider-Man, disengage. That is not a request.'],
+  ],
+  ELECTRO: [['ELECTRO', 'Everything ends grounded.']],
+  SANDMAN: [
+    ['SANDMAN', 'Just stop. I do not want this.'],
+    ['HERO', 'Neither do I, Flint.'],
+  ],
+  VENOM: [['VENOM', 'We can hear your heart slowing.']],
+  'GREEN GOBLIN': [['GREEN GOBLIN', 'There it is. The part where you fall.']],
+  'SYMBIOTE PETER': [
+    ['SYMBIOTE PETER', 'Do not make me finish this, kid.'],
+    ['MILES', 'Then do not.'],
+  ],
+};
+
+// ------------------------------------------------------------- book endings
+
+/**
+ * The last word on a book, played after its final chapter closes and before
+ * the next book opens.
+ *
+ * A book is the unit this story is actually told in, and without these the
+ * only signal that one had ended was the chapter counter resetting.
+ */
+export const BOOK_ENDINGS: Readonly<Record<string, Script>> = {
+  'Book One': [
+    ['MJ', 'One key card, one thief with a conscience, and the same name under all of it.'],
+    ['HERO', 'Osborn.'],
+    ['MJ', 'Osborn. Get some sleep. We start on him tomorrow.'],
+  ],
+  'Book Two': [
+    ['YURI', 'Dillon is in a cell that costs more than this precinct. Somebody insisted.'],
+    ['HERO', 'Somebody who never signs anything.'],
+  ],
+  'Book Three': [
+    ['HERO', 'It is still out there.'],
+    ['MJ', 'It is still out there, and it still says we.'],
+    ['MAY', 'Then eat first. It can wait an hour.'],
+  ],
+  'Book Four': [
+    ['JAMESON', 'Norman Osborn, a glider, and forty people in hospital. I am printing one correction. One!'],
+    ['MJ', 'The story is real. It is just not printable yet.'],
+  ],
+  'Book Five': [
+    ['HERO', 'Marko goes back inside, and his daughter still does not get a visit.'],
+    ['MJ', 'That is the part nobody writes down.'],
+  ],
+  'Book Six': [
+    ['MILES', 'He is asleep. Actually asleep.'],
+    ['MJ', 'You did that.'],
+    ['MILES', 'We did that.'],
+  ],
+  'Book Seven': [
+    ['YURI', 'Six of them in one night, and the city is still standing.'],
+    ['PETER', 'Give it a week.'],
+    ['MILES', 'Give it an hour.'],
+  ],
+};
+
+// ------------------------------------------------------------------- siege
+
+/**
+ * The post-game, which used to happen in total silence.
+ *
+ * One segment per wave, in order, and then it stops — an endless mode
+ * narrating itself forever becomes wallpaper, and the last line is written to
+ * be the last thing the city has to say about it.
+ */
+export const SIEGE: readonly Script[] = [
+  [['YURI', 'Every one of them is out of custody on the same night. That is not a coincidence.']],
+  [['JAMESON', 'They are back! All of them! I told this city and this city did not listen!']],
+  [['MJ', 'Whoever is paying for this has stopped pretending it is deniable.']],
+  [['MAY', 'The shelter is full and the doors are staying open. Do what you have to do.']],
+  [['DANIKA', 'I am broadcasting from a roof and I regret every decision that led me here.']],
+  [['GANKE', 'Six hostiles. Six. I have officially run out of jokes.']],
+  [
+    ['YURI', 'I have nothing left to send you.'],
+    ['HERO', 'Then it is me. Fine. It is always me.'],
+  ],
+];
+
+// ------------------------------------------------------------- side threads
+
+/**
+ * A thread running underneath the books.
+ *
+ * Each is a short arc that advances on cleared crime rather than on chapters,
+ * so the city keeps a life of its own between bosses. They are the one part of
+ * the story a player can miss entirely by rushing, which is what makes
+ * finishing one feel like something.
+ */
+export interface Thread {
+  readonly title: string;
+  /** 0-based book this becomes eligible in. */
+  readonly book: number;
+  readonly beats: readonly Script[];
+}
+
+export const THREADS: readonly Thread[] = [
+  {
+    title: 'The Shelter',
+    book: 0,
+    beats: [
+      [['MAY', 'We took in eleven people last night and turned four away. I hate the four.']],
+      [
+        ['MAY', 'A man came in with a burn nobody could explain. He would not say where.'],
+        ['HERO', 'What kind of burn?'],
+        ['MAY', 'The kind that runs in a straight line.'],
+      ],
+      [
+        ['MAY', 'The boiler has died. Of course it has.'],
+        ['HERO', 'I can look at it tonight.'],
+        ['MAY', 'You can look at it after you have slept.'],
+      ],
+      [
+        ['MAY', 'Somebody paid the whole heating bill anonymously. A very large somebody.'],
+        ['HERO', 'Do not cash it.'],
+        ['MAY', 'I already have. People were cold.'],
+      ],
+      [['MAY', 'The doors stayed open all winter. Whatever else happens out there, write that down.']],
+    ],
+  },
+  {
+    title: 'On Air',
+    book: 1,
+    beats: [
+      [['DANIKA', 'New segment: is the man in the mask actually helping? Comments are, shall we say, mixed.']],
+      [['DANIKA', 'Update. He took a bus door off with his hands to reach a child. Comments are less mixed.']],
+      [['DANIKA', 'Somebody sent me a very polite legal letter about the word Osborn. Strange!']],
+      [['DANIKA', 'I am not taking the segment down, and I would like that on the record.']],
+      [['DANIKA', 'Fifty thousand of you now. Be kind to each other, and look up occasionally.']],
+    ],
+  },
+  {
+    title: 'The Piece',
+    book: 3,
+    beats: [
+      [['MJ', 'I have a source inside the contracting arm. Terrified, but talking.']],
+      [
+        ['MJ', 'Legal killed the draft. That is twice.'],
+        ['HERO', 'So what now?'],
+        ['MJ', 'Now I write a better one.'],
+      ],
+      [
+        ['MJ', 'My source has stopped answering. Can you look at an address for me?'],
+        ['HERO', 'Send it.'],
+      ],
+      [['MJ', 'She is fine. She moved, and she left a box of paper behind. Very kind of her.']],
+      [['MJ', 'It runs. Whatever else happens tonight, the piece runs.']],
+    ],
+  },
+  {
+    title: 'Harlem',
+    book: 5,
+    beats: [
+      [['RIO', 'The block association wants a mural. I said my son knows people who climb.']],
+      [
+        ['GANKE', 'You have been out six nights running. I am telling your mother.'],
+        ['MILES', 'You would not.'],
+        ['GANKE', 'I absolutely would.'],
+      ],
+      [
+        ['RIO', 'Mrs Ortega asked after you by name. Your other name.'],
+        ['MILES', 'Okay. Okay.'],
+        ['RIO', 'She thinks it is wonderful. Breathe.'],
+      ],
+      [['RIO', 'Whatever this city calls you, you come home and you eat. Both of those things.']],
+    ],
+  },
 ];
 
 // ------------------------------------------------------------------- banks
@@ -706,11 +980,17 @@ function buildBanks(): Record<string, string[]> {
   };
 
   for (const beats of Object.values(CHAPTER_BEATS)) {
-    for (const script of [beats.open, beats.mid, beats.close]) if (script) addScript(script);
-    for (const table of [beats.meet, beats.down]) {
+    for (const script of [beats.open, beats.mid, beats.close, beats.banter]) if (script) addScript(script);
+    for (const table of [beats.meet, beats.turn, beats.down]) {
       for (const script of Object.values(table ?? {})) if (script) addScript(script);
     }
   }
+  for (const table of [TURN, PRESSURE]) {
+    for (const script of Object.values(table)) if (script) addScript(script);
+  }
+  for (const script of Object.values(BOOK_ENDINGS)) addScript(script);
+  for (const script of SIEGE) addScript(script);
+  for (const thread of THREADS) for (const script of thread.beats) addScript(script);
   for (const entry of AMBIENT) addScript(entry.script);
   for (const script of DISPATCH) addScript(script);
   return banks;

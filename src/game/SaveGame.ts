@@ -29,7 +29,26 @@ export interface SaveData {
   timeOfDay: number;
   /** Post-game wave reached, 0 during the campaign. */
   postgameTier: number;
+  /**
+   * Where the narration had got to.
+   *
+   * Optional, and absent on every save written before it existed, so a missing
+   * value is normal rather than an error. Without it a reload replayed the
+   * halfway line of a long chapter, restarted the radio at its first segment,
+   * and reset every side thread to the beginning — the story quietly went
+   * backwards while the campaign itself did not.
+   */
+  storyState?: StoryState;
   savedAt: number;
+}
+
+export interface StoryState {
+  /** Whether the current chapter's halfway line has already played. */
+  midBeatPlayed: boolean;
+  /** How far through the radio rotation we are. */
+  ambientCursor: number;
+  /** Beats played per side thread, keyed by thread title. */
+  threads: Record<string, number>;
 }
 
 const STORAGE_KEY = 'web-swinger.save.v1';
@@ -62,6 +81,7 @@ export class SaveGame {
         playtime: numberOr(parsed.playtime, 0),
         timeOfDay: numberOr(parsed.timeOfDay, 0.78),
         postgameTier: numberOr(parsed.postgameTier, 0),
+        storyState: readStoryState(parsed.storyState),
         savedAt: numberOr(parsed.savedAt, 0),
       };
     } catch {
@@ -110,4 +130,30 @@ export class SaveGame {
 
 function numberOr(value: unknown, fallback: number): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+}
+
+/**
+ * Reads the narration state, discarding anything malformed.
+ *
+ * Returns undefined rather than a zeroed default for an absent or broken
+ * block, so the caller can tell "an older save" from "a save that had heard
+ * nothing yet" — the first should keep whatever the campaign implies, the
+ * second genuinely starts from the top.
+ */
+function readStoryState(value: unknown): StoryState | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  const raw = value as Partial<StoryState>;
+  const threads: Record<string, number> = {};
+  if (raw.threads && typeof raw.threads === 'object') {
+    for (const [title, count] of Object.entries(raw.threads)) {
+      if (typeof count === 'number' && Number.isFinite(count) && count >= 0) {
+        threads[title] = Math.floor(count);
+      }
+    }
+  }
+  return {
+    midBeatPlayed: raw.midBeatPlayed === true,
+    ambientCursor: numberOr(raw.ambientCursor, 0),
+    threads,
+  };
 }

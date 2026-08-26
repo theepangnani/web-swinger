@@ -24,6 +24,7 @@ import type { OsmCityData } from './world/OsmData';
 import { Settings, DIFFICULTIES } from './ui/Settings';
 import { SettingsPanel } from './ui/SettingsPanel';
 import {
+  BOOKS,
   Campaign,
   CHAPTER_COUNT,
   CRIME,
@@ -35,8 +36,13 @@ import {
 import { SaveGame } from './game/SaveGame';
 import {
   AMBIENT,
+  BOOK_ENDINGS,
   CHAPTER_BEATS,
   DISPATCH,
+  PRESSURE,
+  SIEGE,
+  THREADS,
+  TURN,
   StoryDirector,
   speakerColor,
   speakerName,
@@ -134,6 +140,15 @@ export class Game {
   private dispatchCooldown = 0;
   /** True once the current chapter's halfway line has played. */
   private midBeatPlayed = false;
+  /** True once this chapter's two villains have talked to each other. */
+  private banterPlayed = false;
+  /** Seconds both villains of a team-up have been in play together. */
+  private banterTimer = 0;
+  /** True while the player is below the low-health mark and has been taunted. */
+  private pressureSaid = false;
+  /** Beats played per side thread, keyed by title. Survives a save. */
+  private readonly threadProgress = new Map<string, number>();
+  private crimesSinceThread = 0;
   /**
    * How many times each villain has been beaten. A count, not a flag: Book
    * Five re-fights earlier villains, and a set would mark those chapters
@@ -150,6 +165,14 @@ export class Game {
   private storyLog: StoryEvent[] = [];
   /** Post-game wave number. 0 until every book is closed. */
   private postgameTier = 0;
+  /**
+   * Tier a loaded save should resume *at*, rather than past.
+   *
+   * The siege escalates whenever the current wave is empty, and a save being
+   * restored has nothing live in it — so every reload handed the player a free
+   * tier, and the difficulty could be walked up without fighting anything.
+   */
+  private resumeTier: number | null = null;
   private playtime = 0;
   /** Throttles autosaves so a busy fight doesn't hammer localStorage. */
   private saveCooldown = 0;
@@ -328,7 +351,9 @@ export class Game {
     // Chapter cards ride the same queue so they land between the chapter that
     // just closed and the one about to open, rather than being painted over.
     this.story.onCard = (card): void => {
-      this.hud.showSubtitle(card.label, card.title, '#ffb703', card.seconds);
+      // Same tail as a spoken line, so the card does not blink out in the gap
+      // before whatever follows it starts.
+      this.hud.showSubtitle(card.label, card.title, '#ffb703', card.seconds + CONFIG.story.lineTail);
       this.sfx.play('alert', 0.35);
     };
     // Optional recorded-clip pack; absent by default. See public/voice/.
@@ -366,6 +391,12 @@ export class Game {
       this.chase.addShake(kind === 'BOMB' ? 0.8 : 0.3);
     };
     this.thugs.onTelegraph = (): void => this.sfx.play('alert', 0.35);
+    // Half health: the one point in a boss fight with something new to say.
+    // A chapter can write its own; otherwise the villain's generic line runs,
+    // which is what gives free roam and the siege the same moment.
+    this.enemies.onTurn = (villain): void => {
+      if (!this.playBeat('turn', villain.kind)) this.story.play(TURN[villain.kind]);
+    };
     this.enemies.onDefeated = (villain): void => {
       this.playBeat('down', villain.kind);
       this.awardXp(CONFIG.progression.xp.villain);
@@ -389,6 +420,7 @@ export class Game {
       this.logStoryEvent(CRIME);
       this.advanceCampaign();
       this.playMidBeat();
+      this.advanceThread();
       if (!this.story.busy) this.voice.say('villain_down', true);
       this.markDirty();
     };
@@ -655,6 +687,8 @@ export class Game {
     this.voice.update(dt);
     this.story.update(dt);
     this.updateAmbient(dt);
+    this.updateBanter(dt);
+    this.updatePressure();
     this.updateBarks(dt);
     this.updateBeacons(dt);
     this.updateMarkers();
@@ -1126,8 +1160,15 @@ export class Game {
     // word. The director queues, so its closing lines are heard in full
     // before the next chapter's opening ones start.
     const leaving = this.campaign.isStory ? this.campaign.current.title : null;
+    const leavingBook = this.campaign.bookIndex;
     if (this.campaign.replay(this.storyLog)) {
       if (leaving) this.story.play(CHAPTER_BEATS[leaving]?.close);
+      // A book closing is the unit this story is told in. `bookIndex` goes to
+      // -1 when the last one closes, which still counts as leaving it, so the
+      // final book gets its ending like every other.
+      if (leavingBook >= 0 && this.campaign.bookIndex !== leavingBook) {
+        this.story.play(BOOK_ENDINGS[BOOKS[leavingBook]!.title]);
+      }
       this.enterChapter();
     }
 
@@ -1171,7 +1212,11 @@ export class Game {
     // Only escalate once the current wave is actually finished.
     if (this.enemies.remaining > 0) return;
 
-    this.postgameTier++;
+    // A restored save re-fields the wave it was saved on. Advancing here
+    // instead meant a reload was worth a free tier.
+    const resumed = this.resumeTier !== null;
+    this.postgameTier = resumed ? this.resumeTier! : this.postgameTier + 1;
+    this.resumeTier = null;
     this.enemies.tier = this.postgameTier;
 
     const waveSize = Math.min(VILLAIN_KINDS.length, 1 + Math.floor(this.postgameTier / 2));
@@ -1197,12 +1242,16 @@ export class Game {
       }
     }
 
-    this.hud.showSubtitle(
+    // Through the queue, like every other card: written straight to the HUD it
+    // was painted over by the siege line a frame later.
+    this.story.playCard(
       `SIEGE · TIER ${this.postgameTier}`,
       `${summoned} on the streets, and they have got stronger.`,
-      '#e63946',
     );
-    this.sfx.play('alert', 0.8);
+    // One segment per wave, then silence — an endless mode that narrates
+    // itself forever stops being narration and becomes wallpaper. Not on a
+    // resume: that wave has already been announced once.
+    if (!resumed) this.story.play(SIEGE[this.postgameTier - 1]);
     this.markDirty();
   }
 
@@ -1235,7 +1284,7 @@ export class Game {
    * is what lets the caller fall back to a generic taunt in free roam and in
    * the post-game, where there is no chapter to have written one.
    */
-  private playBeat(kind: 'meet' | 'down', villain: VillainKind): boolean {
+  private playBeat(kind: 'meet' | 'turn' | 'down', villain: VillainKind): boolean {
     if (!CONFIG.story.enabled || !this.campaign.isStory) return false;
     const beats = CHAPTER_BEATS[this.campaign.current.title];
     return this.story.play(beats?.[kind]?.[villain]);
@@ -1276,18 +1325,117 @@ export class Game {
   }
 
   /**
-   * Whether a live villain is close enough that this counts as a fight.
+   * The live villain closest to the player, if one is close enough that this
+   * counts as a fight.
    *
    * Walks `villains` rather than the `engaged` getter, which filters into a
-   * fresh array — correct once, but this is called every frame.
+   * fresh array — correct once, but this runs every frame.
    */
-  private inVillainFight(): boolean {
-    const radius = CONFIG.story.calmRadius * CONFIG.story.calmRadius;
+  private nearbyVillain(): Villain | null {
+    let best: Villain | null = null;
+    let bestDistance = CONFIG.story.calmRadius * CONFIG.story.calmRadius;
     for (const villain of this.enemies.villains) {
       if (!villain.alive || villain.dormant) continue;
-      if (villain.pos.distanceToSquared(this.player.pos) < radius) return true;
+      const distance = villain.pos.distanceToSquared(this.player.pos);
+      if (distance < bestDistance) {
+        best = villain;
+        bestDistance = distance;
+      }
     }
-    return false;
+    return best;
+  }
+
+  private inVillainFight(): boolean {
+    return this.nearbyVillain() !== null;
+  }
+
+  /**
+   * Two villains on the same rooftop, talking to each other.
+   *
+   * Held back a few seconds after the second one arrives so it lands inside
+   * the fight rather than on top of their entrances, and queued at ambient
+   * priority so it never interrupts anything written. That means it can be
+   * refused, so the flag is only set once the line is genuinely accepted —
+   * latching on the attempt would throw the scene away every time, since the
+   * queue is always busy in the seconds right after two bosses arrive.
+   */
+  private updateBanter(dt: number): void {
+    if (!CONFIG.story.enabled || this.banterPlayed || !this.campaign.isStory) return;
+    const chapter = this.campaign.current;
+    if (chapter.villains.length < 2) return;
+    const banter = CHAPTER_BEATS[chapter.title]?.banter;
+    if (!banter) return;
+
+    let live = 0;
+    for (const villain of this.enemies.villains) {
+      if (villain.alive && !villain.dormant) live++;
+    }
+    if (live < 2) {
+      this.banterTimer = 0;
+      return;
+    }
+
+    this.banterTimer += dt;
+    if (this.banterTimer < CONFIG.story.banterDelay) return;
+    if (this.story.play(banter, 'AMBIENT')) this.banterPlayed = true;
+  }
+
+  /**
+   * The villain gloating when the player is nearly down.
+   *
+   * A health bar in the corner is not much of a warning, and this is the one
+   * moment where a taunt is also a read on the fight. Armed again as soon as
+   * health recovers, so it is once per near-death rather than once ever.
+   */
+  private updatePressure(): void {
+    if (!CONFIG.story.enabled) return;
+    if (healthFraction(this.player) > CONFIG.voice.lowHealthFraction) {
+      this.pressureSaid = false;
+      return;
+    }
+    if (this.pressureSaid || this.player.hp <= 0) return;
+    const villain = this.nearbyVillain();
+    if (!villain) return;
+    if (this.story.play(PRESSURE[villain.kind])) this.pressureSaid = true;
+  }
+
+  /**
+   * Advances whichever side thread is next, on cleared crime rather than on
+   * chapters.
+   *
+   * Threads are the one part of the story a player can outrun by rushing the
+   * books, which is what makes finishing one mean anything. A beat refused
+   * because something else is being said is simply retried on the next crime,
+   * so a busy night delays a thread instead of skipping a beat of it.
+   */
+  private advanceThread(): void {
+    if (!CONFIG.story.enabled) return;
+    this.crimesSinceThread++;
+    if (this.crimesSinceThread < CONFIG.story.threadEvery) return;
+
+    for (const thread of THREADS) {
+      if (thread.book > this.storyBook) continue;
+      const done = this.threadProgress.get(thread.title) ?? 0;
+      if (done >= thread.beats.length) continue;
+      if (!this.story.play(thread.beats[done]!, 'AMBIENT')) return;
+      this.threadProgress.set(thread.title, done + 1);
+      this.crimesSinceThread = 0;
+      return;
+    }
+    // Everything eligible is finished. Stop re-checking on every crime.
+    this.crimesSinceThread = 0;
+  }
+
+  /**
+   * Which book the radio and the threads should think we are in.
+   *
+   * Free roam and the finished campaign have no book to gate on, and by then
+   * the player has seen all of it, so everything is open.
+   */
+  private get storyBook(): number {
+    if (!this.campaign.isStory) return Number.MAX_SAFE_INTEGER;
+    const book = this.campaign.bookIndex;
+    return book >= 0 ? book : Number.MAX_SAFE_INTEGER;
   }
 
   /**
@@ -1311,14 +1459,12 @@ export class Game {
     if (this.ambientTimer > 0) return;
     this.ambientTimer = CONFIG.story.ambientInterval;
 
-    // Free roam and the post-game have no book to gate on, and by then the
-    // player has seen everything, so the whole list is open.
-    const book = this.campaign.isStory && this.campaign.bookIndex >= 0 ? this.campaign.bookIndex : AMBIENT.length;
-    const eligible = AMBIENT.filter((entry) => entry.book <= book);
+    const eligible = AMBIENT.filter((entry) => entry.book <= this.storyBook);
     if (eligible.length === 0) return;
     const entry = eligible[this.ambientCursor % eligible.length]!;
     this.ambientCursor++;
     this.story.play(entry.script, 'AMBIENT');
+    this.markDirty();
   }
 
   /**
@@ -1355,6 +1501,8 @@ export class Game {
   private enterChapter(announce = true): void {
     const chapter = this.campaign.current;
     this.midBeatPlayed = false;
+    this.banterPlayed = false;
+    this.banterTimer = 0;
 
     // Pin the sky so a scene written for the dark happens in the dark, however
     // long the player took to get here. Free roam runs the clock freely.
@@ -1423,6 +1571,11 @@ export class Game {
         playtime: this.playtime,
         timeOfDay: this.dayNight.time,
         postgameTier: this.postgameTier,
+        storyState: {
+          midBeatPlayed: this.midBeatPlayed,
+          ambientCursor: this.ambientCursor,
+          threads: Object.fromEntries(this.threadProgress),
+        },
       },
       Date.now(),
     );
@@ -1437,6 +1590,11 @@ export class Game {
     }
 
     this.story.clear();
+    this.threadProgress.clear();
+    this.crimesSinceThread = 0;
+    this.banterPlayed = false;
+    this.banterTimer = 0;
+    this.pressureSaid = false;
     this.campaign = new Campaign(data.mode);
     this.progression.restore(data.progression);
     this.player.restoreAppearance(data.heroId, data.suitByHero);
@@ -1446,11 +1604,19 @@ export class Game {
     this.crimesCleared = data.crimesCleared;
     this.villainsSurfaced = data.villainsSurfaced;
     this.playtime = data.playtime;
+    this.ambientCursor = data.storyState?.ambientCursor ?? 0;
+    for (const [title, done] of Object.entries(data.storyState?.threads ?? {})) {
+      this.threadProgress.set(title, done);
+    }
     this.dayNight.setTime(data.timeOfDay);
     // Restore the tier *before* anything spawns, so a revived boss comes back
     // at the strength it had rather than at tier zero.
     this.postgameTier = data.postgameTier;
     this.enemies.tier = data.postgameTier;
+    // Story saves only, and only when a wave was actually reached: a completed
+    // story sitting at tier 0 has never fought one, so the first wave still
+    // has to start normally, and free roam never reaches the siege at all.
+    this.resumeTier = data.mode === 'STORY' && data.postgameTier > 0 ? data.postgameTier : null;
     // The save stores both logs in order, so every count rebuilds from them.
     // A save written before the event log existed only has totals, which are
     // migrated into the closest honest log they can support.
@@ -1478,6 +1644,9 @@ export class Game {
     } else {
       // Re-apply the chapter's clock, forced hero and partner, then spawn it.
       this.enterChapter(false);
+      // enterChapter clears these; the save is what actually knows whether
+      // the halfway line has been heard, so it is applied afterwards.
+      this.midBeatPlayed = data.storyState?.midBeatPlayed ?? false;
       this.advanceCampaign();
     }
 
@@ -1495,6 +1664,13 @@ export class Game {
   startMode(mode: GameModeId): void {
     SaveGame.clear();
     this.story.clear();
+    this.threadProgress.clear();
+    this.crimesSinceThread = 0;
+    this.ambientCursor = 0;
+    this.resumeTier = null;
+    this.banterPlayed = false;
+    this.banterTimer = 0;
+    this.pressureSaid = false;
     this.campaign = new Campaign(mode);
     this.crimesCleared = 0;
     this.villainsSurfaced = 0;
