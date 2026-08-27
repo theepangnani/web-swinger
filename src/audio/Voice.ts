@@ -419,6 +419,11 @@ export class Voice {
     if (lines.length === 0) return false;
     // Checked before `force`, on purpose: nothing interrupts written dialogue.
     if (this.clock < this.holdUntil) return false;
+    // And belt to that brace. The hold is computed from a duration; this is
+    // the audio itself saying it has not finished. A bark that gets past the
+    // first check still must not replace a recording mid-word, because that is
+    // heard as one character's voice turning into another's mid-sentence.
+    if (this.clips.playing) return false;
     if (!force && this.clock < this.globalReadyAt) return false;
     if (!force && this.clock < (this.readyAt.get(key) ?? 0)) return false;
 
@@ -504,8 +509,18 @@ export class Voice {
     const all = window.speechSynthesis.getVoices().filter((v) => v.lang.startsWith('en'));
     if (all.length === 0) return;
 
-    this.voiceFor.clear();
+    // Keep what has already been handed out. `voiceschanged` can fire more
+    // than once as a platform finishes loading its voices, and rebuilding the
+    // table from scratch each time reassigns speakers who were already
+    // talking — the same character comes back in a different voice partway
+    // through a conversation. A speaker only moves if its voice has actually
+    // gone away.
+    const available = new Set(all);
     const claimed = new Set<SpeechSynthesisVoice>();
+    for (const [speaker, voice] of [...this.voiceFor]) {
+      if (available.has(voice)) claimed.add(voice);
+      else this.voiceFor.delete(speaker);
+    }
 
     // Prefer the higher-quality network/neural voices the platform exposes —
     // they are markedly less flat than the default local ones.
@@ -514,6 +529,7 @@ export class Voice {
     const pool = [...all].sort((a, b) => quality(a) - quality(b));
 
     for (const [speaker, profile] of Object.entries(PROFILES)) {
+      if (this.voiceFor.has(speaker)) continue;
       let picked: SpeechSynthesisVoice | undefined;
       for (const pattern of profile.prefer) {
         picked = pool.find((v) => !claimed.has(v) && pattern.test(v.name));

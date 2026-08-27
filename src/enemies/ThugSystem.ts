@@ -632,6 +632,10 @@ export class ThugSystem implements TargetProvider {
 
     crime.resolved = true;
     this.pendingReap = true;
+    // Earn a breather. Only ever pushes the timer out, never pulls it in, so
+    // a crime that resolves while another is already overdue does not hand the
+    // player a fresh one instantly.
+    this.spawnTimer = Math.max(this.spawnTimer, CONFIG.crimes.restAfterFight);
     this.onCrimeResolved?.(crime);
   }
 

@@ -350,9 +350,14 @@ export class EnemySystem implements TargetProvider {
    * exactly the one that should be healing. A boss at full health regenerates
    * nothing and never announces anything.
    */
-  private updateRegen(dt: number, v: Villain): void {
+  private updateRegen(dt: number, v: Villain, playerPos: THREE.Vector3): void {
     const cfg = CONFIG.enemies.regen;
-    const should = v.sinceHit > cfg.idleSeconds && v.hp < v.maxHp;
+    // Both, not either. Quiet seconds happen inside a fight — being knocked
+    // off a roof, crossing an arena, dealing with the escort they just called
+    // in — and firing on those punished players who had not gone anywhere.
+    // Three hundred metres is what running away to heal actually looks like.
+    const away = v.pos.distanceToSquared(playerPos) > cfg.range * cfg.range;
+    const should = away && v.sinceHit > cfg.idleSeconds && v.hp < v.maxHp;
     if (should) {
       v.hp = Math.min(v.maxHp, v.hp + v.maxHp * cfg.fractionPerSecond * dt);
       // Healing back over the halfway mark re-arms the mid-fight line, for the
@@ -674,7 +679,7 @@ export class EnemySystem implements TargetProvider {
       v.hitFlash = Math.max(0, v.hitFlash - dt * 4);
       v.sinceHit += dt;
       v.stunTimer = Math.max(0, v.stunTimer - dt);
-      this.updateRegen(dt, v);
+      this.updateRegen(dt, v, player.pos);
       this.updateObjective(dt, v, player.pos);
       v.poiseCooldown = Math.max(0, v.poiseCooldown - dt);
       if (v.poiseTimer > 0) {
@@ -697,7 +702,8 @@ export class EnemySystem implements TargetProvider {
       if (v.webbed > 0) {
         v.webbed = Math.max(0, v.webbed - dt);
         this.poseLimbs(dt, v);
-        v.root.position.copy(v.pos);
+        this.keepAboveRooftops(v);
+      v.root.position.copy(v.pos);
         this.applyPivotScale(v);
         continue;
       }
@@ -710,7 +716,8 @@ export class EnemySystem implements TargetProvider {
       if (v.stunTimer > 0) {
         v.telegraphing = false;
         this.poseLimbs(dt, v);
-        v.root.position.copy(v.pos);
+        this.keepAboveRooftops(v);
+      v.root.position.copy(v.pos);
         this.applyPivotScale(v);
         continue;
       }
@@ -721,7 +728,8 @@ export class EnemySystem implements TargetProvider {
       if (v.phase === 'REPEL' || v.phase === 'REPEL_MOVE') {
         this.updateRepel(dt, v, player);
         this.poseLimbs(dt, v);
-        v.root.position.copy(v.pos);
+        this.keepAboveRooftops(v);
+      v.root.position.copy(v.pos);
         this.applyPivotScale(v, 0.05);
         continue;
       }
@@ -758,6 +766,7 @@ export class EnemySystem implements TargetProvider {
 
       this.confineToArena(v, player);
       this.poseLimbs(dt, v);
+      this.keepAboveRooftops(v);
       v.root.position.copy(v.pos);
       this.applyPivotScale(v);
     }
@@ -1047,7 +1056,15 @@ export class EnemySystem implements TargetProvider {
     // raised his target by the same metre. Swinging up to meet him pushed him
     // up, which pushed the ceiling up, and the chase never converged: he was
     // not fleeing, he was being levitated by the player's own altitude.
-    const floor = this.surfaceHeight(v.pos.x, v.pos.z);
+    // Sampled both underfoot and along the course he is steering onto, so a
+    // tower he is about to cross raises his target before he reaches it
+    // instead of after he is inside it.
+    const aheadX = v.pos.x + (targetX - v.pos.x) * cfg.lookAhead;
+    const aheadZ = v.pos.z + (targetZ - v.pos.z) * cfg.lookAhead;
+    const floor = Math.max(
+      this.surfaceHeight(v.pos.x, v.pos.z),
+      this.surfaceHeight(aheadX, aheadZ),
+    );
     let targetY = floor + cfg.hoverHeight + Math.sin(t * 1.1) * 2;
     if (engaged) {
       // A ceiling relative to the player, so he is always within a swing of
@@ -1061,7 +1078,7 @@ export class EnemySystem implements TargetProvider {
 
     v.pos.x = damp(v.pos.x, targetX, cfg.speed * 0.09, dt);
     v.pos.z = damp(v.pos.z, targetZ, cfg.speed * 0.09, dt);
-    v.pos.y = damp(v.pos.y, targetY, 2.4, dt);
+    v.pos.y = damp(v.pos.y, targetY, cfg.climbRate, dt);
     this.faceTowards(v, player.pos, dt, 5);
 
     if (!engaged) return;
@@ -2134,6 +2151,36 @@ export class EnemySystem implements TargetProvider {
    * Uses the broadphase column lookup, not a raycast — this is called several
    * times per frame and a full ray sweep here was pure waste.
    */
+  /**
+   * Stops the fliers ending up inside a building.
+   *
+   * Their altitude is steered by damping toward a target that already accounts
+   * for the rooftops below — but damping is a preference, not a rule. The
+   * Goblin's orbit crosses a two-hundred-metre tower in less time than his
+   * climb takes, so he passed up through the roof and sank back down through
+   * it on the way out. From the street that reads as him phasing in and out of
+   * the building, which is exactly what it was.
+   *
+   * A hard floor is the actual rule, and it is applied everywhere the villain's
+   * transform is published rather than only on the main path. That distinction
+   * was itself a bug: the repel branch — the shove-off that *relocates* a
+   * villain — returns early and skipped the clamp, so Electro spent his
+   * relocation 188 m inside a tower while the Goblin, who never repels far,
+   * looked perfectly fine.
+   *
+   * Only the two that fly: everyone else is placed on a surface by their own
+   * logic and clamping a ground fighter here would fight it.
+   */
+  private keepAboveRooftops(v: Villain): void {
+    if (v.kind !== 'GREEN GOBLIN' && v.kind !== 'ELECTRO') return;
+    const clearance =
+      v.kind === 'GREEN GOBLIN'
+        ? CONFIG.enemies.goblin.minClearance
+        : CONFIG.enemies.electro.hoverHeight * 0.35;
+    const floor = this.surfaceHeight(v.pos.x, v.pos.z) + clearance;
+    if (v.pos.y < floor) v.pos.y = floor;
+  }
+
   private surfaceHeight(x: number, z: number): number {
     return this.city.groundHeightAt(x, z);
   }

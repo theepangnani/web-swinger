@@ -39,12 +39,15 @@ class FakeAudio {
     this.currentTime = 0;
     this.preload = '';
     this.plays = 0;
+    this.paused = true;
+    this.ended = false;
     this.pauses = 0;
     this.loads = 0;
     built.push(this);
   }
   play() {
     this.plays++;
+    this.paused = false;
     // The real element resolves or rejects a turn later; that gap is the whole
     // reason the fallback cannot be decided from the return value.
     return this.src && [...rejects].some((r) => this.src.endsWith(r))
@@ -53,6 +56,7 @@ class FakeAudio {
   }
   pause() {
     this.pauses++;
+    this.paused = true;
   }
   load() {
     this.loads++;
@@ -228,6 +232,33 @@ console.log('[3b] clip durations');
     fail(`a bare-string manifest threw: ${err}`);
   }
   if (ok3) ok('a manifest of bare strings still plays');
+}
+
+// --- 3c. a bark must not cut into a line -----------------------------------
+console.log('[3c] one voice at a time');
+{
+  // The symptom this exists for is "the voice changed halfway through the
+  // sentence". `play()` begins by stopping whatever is running, which is right
+  // for two barks and badly wrong across a line of dialogue: the recording is
+  // replaced mid-word by a different character.
+  const clips = new VoiceClips();
+  await clips.load();
+  built.length = 0;
+
+  clips.play('YURI', 'story', 0, 1);
+  const first = built[0];
+  first.paused = false;
+  first.ended = false;
+  if (!clips.playing) fail('a dispatched clip does not report itself as playing');
+  else ok('a playing clip reports itself');
+
+  first.ended = true;
+  if (clips.playing) fail('a finished clip still claims the channel');
+  else ok('a finished clip releases the channel');
+
+  clips.stop();
+  if (clips.playing) fail('stop() left the channel claimed');
+  else ok('stop() releases the channel');
 }
 
 // --- 4. the cache is bounded ---------------------------------------------

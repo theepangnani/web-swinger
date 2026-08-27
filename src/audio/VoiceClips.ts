@@ -197,6 +197,19 @@ export class VoiceClips {
     }
   }
 
+  /**
+   * A clip is playing right now.
+   *
+   * Used to stop a bark cutting into a scripted line. `play()` begins by
+   * stopping whatever is running, which is right for two barks in a row and
+   * badly wrong across a line of dialogue: the recording is replaced mid-word
+   * by a different character, which is heard as the voice changing halfway
+   * through the sentence rather than as one line interrupting another.
+   */
+  get playing(): boolean {
+    return this.current !== null && !this.current.paused && !this.current.ended;
+  }
+
   stop(): void {
     if (!this.current) return;
     this.current.pause();

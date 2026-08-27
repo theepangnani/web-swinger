@@ -23,6 +23,7 @@ const SUITES = [
   ['rematch.mjs', 'a chapter can only ever field the villain it named'],
   ['numeric.mjs', 'day/night clock keeps running, and never goes pitch dark'],
   ['joints.mjs', 'villain limbs sit exactly where they were authored'],
+  ['flight.mjs', 'the fliers stay out of the buildings they cross'],
 ];
 
 const filters = process.argv.slice(2);

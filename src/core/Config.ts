@@ -380,6 +380,16 @@ export const CONFIG = {
        * without any intent to disengage — so the meter was firing on players
        * who had not gone anywhere. Fifteen only catches actually leaving.
        */
+      /**
+       * How far the player has to be for a boss to consider itself left alone.
+       *
+       * Time alone was the wrong measure. Being knocked off a roof, crossing
+       * an arena, or fighting the escort a boss just called in are all quiet
+       * seconds spent very much still in the fight, and the meter fired on all
+       * of them. Distance is what "ran away to heal" actually means, so both
+       * have to be true now: fifteen seconds *and* three hundred metres.
+       */
+      range: 300,
       idleSeconds: 15,
       /** Fraction of maximum health per second once it starts. */
       fractionPerSecond: 0.05,
@@ -550,6 +560,21 @@ export const CONFIG = {
        * into a tower.
        */
       minClearance: 10,
+      /**
+       * How far ahead along his own course the ground is sampled, in seconds
+       * of travel.
+       *
+       * Without it he only reacts to the tower he is already inside. Altitude
+       * damps toward its target at a fixed rate while the orbit carries him
+       * horizontally much faster, so crossing a tall building took less time
+       * than climbing over it did — he phased up through the roof, then sank
+       * back through it on the way out. Looking ahead starts the climb before
+       * he arrives, which is what makes it read as gliding over rather than
+       * popping out.
+       */
+      lookAhead: 1.4,
+      /** Metres per second of climb. Was an implicit damp rate of 2.4. */
+      climbRate: 4.5,
       /** Radius of the orbit he flies around the player. */
       orbitRadius: 36,
       speed: 20,
@@ -945,10 +970,18 @@ export const CONFIG = {
    */
   story: {
     enabled: true,
-    /** Seconds of uninterrupted calm before the radio says something. */
-    ambientInterval: 95,
+    /**
+     * Seconds of uninterrupted calm before the radio says something.
+     *
+     * Was 95, which with dispatch calls, four side threads, villain taunts,
+     * mid-fight lines and the chapter's own beats meant somebody was talking
+     * almost continuously — and the campaign's actual plot was the part that
+     * got lost in it. The texture is worth having; it is not worth having
+     * every ninety seconds.
+     */
+    ambientInterval: 200,
     /** Fraction of newly staged crimes that get a dispatch callout. */
-    dispatchChance: 0.45,
+    dispatchChance: 0.25,
     /** Minimum gap between two dispatch callouts, seconds. */
     dispatchCooldown: 40,
     /**
@@ -963,7 +996,7 @@ export const CONFIG = {
     /** Extra seconds a scripted line holds the bark channel after it ends. */
     lineTail: 0.6,
     /** Cleared crimes between one side-thread beat and the next. */
-    threadEvery: 4,
+    threadEvery: 7,
     /**
      * Seconds two villains must share a rooftop before they talk to each
      * other. Long enough that the fight has started, short enough to still be
@@ -1083,6 +1116,15 @@ export const CONFIG = {
   crimes: {
     maxActive: 3,
     spawnInterval: 20,
+    /**
+     * Quiet seconds after a crime is cleared before another can be staged.
+     *
+     * The spawn timer only ever counted from the last *spawn*, so a crime
+     * could be waiting the moment the previous one ended — sometimes before
+     * the last thug had finished falling over. There was no gap anywhere in
+     * which to simply travel, which is the thing this game is best at.
+     */
+    restAfterFight: 30,
     /** Gap before retrying after a spawn found nowhere suitable. */
     retryInterval: 2.5,
     /**
