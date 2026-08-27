@@ -372,8 +372,15 @@ export const CONFIG = {
      * something the player can see happen.
      */
     regen: {
-      /** Quiet seconds before a boss starts recovering. */
-      idleSeconds: 8,
+      /**
+       * Quiet seconds before a boss starts recovering.
+       *
+       * Eight was inside the normal rhythm of a fight — repositioning after
+       * being knocked off a roof, or crossing an arena, could take that long
+       * without any intent to disengage — so the meter was firing on players
+       * who had not gone anywhere. Fifteen only catches actually leaving.
+       */
+      idleSeconds: 15,
       /** Fraction of maximum health per second once it starts. */
       fractionPerSecond: 0.05,
       /** Seconds a boss is staggered when the first hit lands on a regen. */
@@ -721,6 +728,23 @@ export const CONFIG = {
     leashRange: 175,
     attackRange: 5.2,
     attackCooldown: 1.1,
+    /**
+     * A thrown web, for anything they cannot walk up to.
+     *
+     * The partner is kinematic and glued to the surface — `beginTravel`
+     * replaces any goal's altitude with the ground beneath it — so against
+     * Electro at 22 m of hover, or the Goblin's orbit, they stood on the roof
+     * below and never once got inside the 5.2 m needed to swing. Both of them
+     * have web-shooters and neither was using them.
+     *
+     * Worth less than a punch on purpose: reaching something unreachable
+     * should cost something, and a partner who is as good at range as they are
+     * in melee has no reason to ever close.
+     */
+    webRange: 48,
+    webDamage: 17,
+    webCooldown: 1.9,
+    webTelegraph: 0.25,
     /** Telegraph before their swing lands. */
     attackTelegraph: 0.3,
     damage: 30,
@@ -1002,9 +1026,29 @@ export const CONFIG = {
   dodge: {
     speed: 24,
     duration: 0.28,
-    cooldown: 0.45,
-    /** Invulnerability granted by any dodge. */
-    iframes: 0.3,
+    /**
+     * Long enough that dodge-spam is not a substitute for reading the fight.
+     *
+     * Raised with the i-frames below: 0.6 s of cover on a 0.45 s cooldown is
+     * permanent invulnerability for anyone holding the button. At 0.85 a
+     * chained dodge leaves roughly a quarter-second of exposure, which is the
+     * difference between a defensive move and an off switch.
+     */
+    cooldown: 0.85,
+    /**
+     * Invulnerability granted by any dodge.
+     *
+     * This was 0.3 s, and that was the bug behind "I dodged and still took
+     * damage" — because it was measured against the dodge rather than against
+     * the attack. Everything that hits you telegraphs for 0.42 s to 0.55 s
+     * first, so a player who reacts to the wind-up and dodges immediately ran
+     * out of invulnerability *before the blow landed*. They did the right
+     * thing, at the right moment, and were hit anyway.
+     *
+     * 0.6 covers the longest ordinary telegraph from the instant the dodge
+     * starts, so reacting to the cue is now sufficient on its own.
+     */
+    iframes: 0.6,
     /** Dodging inside this window before impact is a "perfect" dodge. */
     perfectWindow: 0.25,
     /** Range at which spider-sense warns of an incoming attack. */

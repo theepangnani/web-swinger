@@ -537,6 +537,10 @@ export class Game {
           break;
       }
     };
+    this.ally.onWebShot = (target): void => {
+      this.sfx.play('thwip', 0.6, 1.15);
+      this.enemies.spawnImpactAt(target.pos, 0xf2f6ff, 4);
+    };
     this.ally.onHit = (_target, heavy): void => {
       this.sfx.play(heavy ? 'heavy' : 'punch', heavy ? 0.8 : 0.5, 1 + Math.random() * 0.2);
     };

@@ -156,18 +156,37 @@ export class VillainBuilder {
   // vertices — a few thousand per character, against a city of eleven thousand
   // buildings. Low-poly limbs were reading as carved rather than as bodies.
   capsule(material: THREE.Material, radius: number, length: number, at: Placement = {}): this {
-    return this.add(new THREE.CapsuleGeometry(radius, length, 6, 16), material, at);
+    return this.add(new THREE.CapsuleGeometry(radius, length, 10, 24), material, at);
   }
 
-  sphere(material: THREE.Material, radius: number, at: Placement = {}, segments = 16): this {
+  sphere(material: THREE.Material, radius: number, at: Placement = {}, segments = 22): this {
     return this.add(new THREE.SphereGeometry(radius, segments, Math.round(segments * 0.8)), material, at);
   }
 
-  box(material: THREE.Material, w: number, h: number, d: number, at: Placement = {}): this {
-    return this.add(new THREE.BoxGeometry(w, h, d), material, at);
+  /**
+   * A box with its edges taken off.
+   *
+   * Everything on a body that used to be a plain `BoxGeometry` — a boot, a
+   * bracer, a jaw plate, a glider fin — announced itself as a box the moment
+   * light hit the edge, and twenty-three of them across the roster was most of
+   * why the characters read as assembled rather than sculpted. Nothing on a
+   * person has a perfectly sharp 90-degree edge.
+   *
+   * `radius` is clamped to a third of the smallest side, so a thin plate stays
+   * a plate instead of collapsing into a lozenge.
+   */
+  box(
+    material: THREE.Material,
+    w: number,
+    h: number,
+    d: number,
+    at: Placement = {},
+    bevel = 0.3,
+  ): this {
+    return this.add(roundedBox(w, h, d, bevel), material, at);
   }
 
-  cone(material: THREE.Material, radius: number, height: number, at: Placement = {}, segments = 10): this {
+  cone(material: THREE.Material, radius: number, height: number, at: Placement = {}, segments = 18): this {
     return this.add(new THREE.ConeGeometry(radius, height, segments), material, at);
   }
 
@@ -177,13 +196,13 @@ export class VillainBuilder {
     bottom: number,
     height: number,
     at: Placement = {},
-    segments = 14,
+    segments = 22,
   ): this {
     return this.add(new THREE.CylinderGeometry(top, bottom, height, segments), material, at);
   }
 
-  torus(material: THREE.Material, radius: number, tube: number, at: Placement = {}, segments = 16): this {
-    return this.add(new THREE.TorusGeometry(radius, tube, 6, segments), material, at);
+  torus(material: THREE.Material, radius: number, tube: number, at: Placement = {}, segments = 24): this {
+    return this.add(new THREE.TorusGeometry(radius, tube, 12, segments), material, at);
   }
 
   /** Faceted lump — the workhorse for organic mass that shouldn't look moulded. */
@@ -470,4 +489,60 @@ export class VillainBuilder {
       this.sink.push(merged);
     }
   }
+}
+
+/**
+ * A box whose corners and edges are rounded, built by inflating a subdivided
+ * cube onto a rounded-cube surface.
+ *
+ * Three's own `RoundedBoxGeometry` lives in the examples bundle, which this
+ * project does not pull in — and the whole trick is four lines anyway: take
+ * each vertex, clamp it into the inner box that the corner spheres sit on,
+ * then push it back out to `radius` along the direction it was displaced.
+ * Vertices on a flat face are already inside the inner box, so they do not
+ * move; only the edges and corners round off, which is exactly the intent.
+ *
+ * Normals are recomputed afterwards, because the inflation is what makes the
+ * bevel catch the light and the original box normals know nothing about it.
+ */
+export function roundedBox(
+  width: number,
+  height: number,
+  depth: number,
+  bevel: number,
+  segments = 4,
+): THREE.BufferGeometry {
+  const smallest = Math.min(width, height, depth);
+  // A third of the smallest side is the point past which a plate stops being
+  // a plate. Clamped rather than trusted, because callers pass a ratio.
+  const radius = Math.min(smallest * bevel, smallest / 3);
+
+  const geometry = new THREE.BoxGeometry(width, height, depth, segments, segments, segments);
+  const position = geometry.getAttribute('position');
+  // Half-extents of the inner box the corner radius rolls around.
+  const ix = Math.max(width / 2 - radius, 0);
+  const iy = Math.max(height / 2 - radius, 0);
+  const iz = Math.max(depth / 2 - radius, 0);
+
+  const v = new THREE.Vector3();
+  const inner = new THREE.Vector3();
+  for (let i = 0; i < position.count; i++) {
+    v.fromBufferAttribute(position, i);
+    inner.set(
+      THREE.MathUtils.clamp(v.x, -ix, ix),
+      THREE.MathUtils.clamp(v.y, -iy, iy),
+      THREE.MathUtils.clamp(v.z, -iz, iz),
+    );
+    // Direction from the inner box out to this vertex. Zero length means the
+    // vertex is already on the inner box and belongs where it is.
+    v.sub(inner);
+    const length = v.length();
+    if (length > 1e-6) v.multiplyScalar(radius / length);
+    v.add(inner);
+    position.setXYZ(i, v.x, v.y, v.z);
+  }
+
+  position.needsUpdate = true;
+  geometry.computeVertexNormals();
+  return geometry;
 }

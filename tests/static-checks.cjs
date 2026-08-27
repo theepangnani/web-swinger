@@ -502,6 +502,24 @@ console.log('[12] the fight, and the city around it');
   if (!/v \? v\.empowered : 1/.test(enemySrc)) fail('empowerment never reaches the player');
   if (!/objectiveProgress/.test(hudSrc)) fail('the objective is invisible to the player');
 
+  // --- bodies ---
+  // Everything on a person that was a plain BoxGeometry announced itself as a
+  // box the moment light hit an edge, and there were twenty-three of them
+  // across the roster.
+  const partsSrc = read(path.join(ROOT, 'src/enemies/VillainParts.ts'));
+  if (!/function roundedBox/.test(partsSrc)) fail('villain boxes have hard edges again');
+  const boxFn = partsSrc.match(/  box\(\n[\s\S]*?\n  \}/);
+  if (boxFn && !/roundedBox\(/.test(boxFn[0])) fail('box() is back to a raw BoxGeometry');
+  // Thug limbs were eight-sided prisms. They must not go back, and must also
+  // not be pushed to hero tessellation — that cost 5x for bodies seen across a
+  // rooftop.
+  const thugModel = read(path.join(ROOT, 'src/enemies/ThugModel.ts'));
+  for (const m of thugModel.matchAll(/CapsuleGeometry\([^,]+, [^,]+, (\d+), (\d+)\)/g)) {
+    const radial = Number(m[2]);
+    if (radial < 12) fail(`a thug limb is ${radial}-sided — that reads as a prism`);
+    if (radial > 16) fail(`a thug limb is ${radial}-sided; they are crowd, not hero`);
+  }
+
   console.log('  ok — one shared recovery rule, staggers pose, escorts swept, victims wait,');
   console.log('       packs saved, and every villain is working at something with a ceiling');
 }

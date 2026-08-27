@@ -69,6 +69,24 @@ const JACKET: Record<ThugBuild, number> = {
   GUNNER: 0x3d5a4a,
 };
 
+/**
+ * Thug bodies were the low-poly ones.
+ *
+ * Limbs were eight-sided capsules and hands were 8x6 spheres — an octagonal
+ * prism and a die respectively, visibly faceted the moment one stands still in
+ * front of you, and the reason the street crowd read as props next to the
+ * heroes. Capsules are now 6x14 and spheres 14x10.
+ *
+ * Not as round as the player, deliberately. Matching the hero model put a
+ * thug at 14,756 triangles against 2,868 — five times the cost for a body
+ * that is usually across a rooftop and never the thing being looked at. This
+ * is the point where the silhouette stops reading as faceted, which is all
+ * that was wrong with it.
+ *
+ * The cost is paid once rather than per thug: the factory owns one copy of
+ * each geometry and every body instances it, so a rounder arm is a few hundred
+ * extra vertices in total, not per enemy.
+ */
 export class ThugFactory {
   private readonly disposables: Array<{ dispose(): void }>;
 
@@ -93,17 +111,17 @@ export class ThugFactory {
   constructor(disposables: Array<{ dispose(): void }>) {
     this.disposables = disposables;
 
-    this.torsoGeo = new THREE.CapsuleGeometry(0.23, 0.42, 4, 10);
-    this.chestGeo = new THREE.SphereGeometry(0.19, 10, 8);
-    this.pelvisGeo = new THREE.SphereGeometry(0.18, 10, 8);
+    this.torsoGeo = new THREE.CapsuleGeometry(0.23, 0.42, 6, 14);
+    this.chestGeo = new THREE.SphereGeometry(0.19, 14, 10);
+    this.pelvisGeo = new THREE.SphereGeometry(0.18, 14, 10);
     this.neckGeo = new THREE.CylinderGeometry(0.075, 0.09, 0.1, 8);
-    this.headGeo = new THREE.SphereGeometry(0.155, 12, 10);
+    this.headGeo = new THREE.SphereGeometry(0.155, 14, 10);
     this.browGeo = new THREE.BoxGeometry(0.26, 0.062, 0.04);
-    this.upperArmGeo = new THREE.CapsuleGeometry(0.068, 0.24, 3, 8);
-    this.foreArmGeo = new THREE.CapsuleGeometry(0.058, 0.22, 3, 8);
-    this.handGeo = new THREE.SphereGeometry(0.062, 8, 6);
-    this.thighGeo = new THREE.CapsuleGeometry(0.087, 0.3, 3, 8);
-    this.shinGeo = new THREE.CapsuleGeometry(0.072, 0.28, 3, 8);
+    this.upperArmGeo = new THREE.CapsuleGeometry(0.068, 0.24, 6, 14);
+    this.foreArmGeo = new THREE.CapsuleGeometry(0.058, 0.22, 6, 14);
+    this.handGeo = new THREE.SphereGeometry(0.062, 14, 10);
+    this.thighGeo = new THREE.CapsuleGeometry(0.087, 0.3, 6, 14);
+    this.shinGeo = new THREE.CapsuleGeometry(0.072, 0.28, 6, 14);
     this.bootGeo = new THREE.BoxGeometry(0.15, 0.09, 0.24);
 
     this.dark = new THREE.MeshStandardMaterial({ color: 0x1e2430, roughness: 0.9, metalness: 0.08 });

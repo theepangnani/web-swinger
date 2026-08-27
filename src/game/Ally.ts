@@ -41,6 +41,12 @@ const _slump = new THREE.Quaternion();
 
 export class Ally {
   readonly root = new THREE.Group();
+  /** Counts down to a thrown web landing; see `CONFIG.ally.webRange`. */
+  private webTimer = 0;
+  private webCooldown = 0;
+  /** Raised when they fire a web at something out of reach, for sound. */
+  onWebShot: ((target: CombatTarget) => void) | null = null;
+
   /** Null until `summon` is called; the ally is absent for most chapters. */
   heroId: HeroId | null = null;
   active = false;
@@ -188,6 +194,7 @@ export class Ally {
     const cfg = CONFIG.ally;
     this.sinceHit += dt;
     this.attackCooldown = Math.max(0, this.attackCooldown - dt);
+    this.webCooldown = Math.max(0, this.webCooldown - dt);
     this.travelCooldown = Math.max(0, this.travelCooldown - dt);
     this.abilityCooldown = Math.max(0, this.abilityCooldown - dt);
 
@@ -251,6 +258,17 @@ export class Ally {
       return;
     }
 
+    // A web already on its way. Held apart from the swing so a target that
+    // climbs out of melee reach mid-wind-up still gets hit by something.
+    if (this.webTimer > 0) {
+      this.webTimer -= dt;
+      this.state = PlayerState.Attacking;
+      this.integrate(dt);
+      if (this.webTimer <= 0) this.resolveWeb(providers);
+      this.pose(dt, playerPos);
+      return;
+    }
+
     // --- move --------------------------------------------------------------
     if (this.target) {
       _goal.copy(this.target.pos);
@@ -272,6 +290,11 @@ export class Ally {
         this.attackTimer = cfg.attackTelegraph;
         this.attackIndex = (this.attackIndex + 1) % 3;
         this.attackCooldown = cfg.attackCooldown;
+      } else if (gap < cfg.webRange && this.webCooldown <= 0) {
+        // Out of arm's reach and staying there — which, for a partner who
+        // cannot leave the ground, is every flier in the game.
+        this.webTimer = cfg.webTelegraph;
+        this.webCooldown = cfg.webCooldown;
       }
     } else {
       // Follow: a step behind and slightly to one side, in the player's own
@@ -518,6 +541,32 @@ export class Ally {
   }
 
   /** Damage on the swing's contact frame. */
+  /**
+   * A thrown web landing.
+   *
+   * Deliberately not gated on the target having stayed still: it is a web, it
+   * was aimed, and a flier drifting two metres between the throw and the
+   * landing should not make it miss. The generous range check is what stops it
+   * hitting something that has genuinely left.
+   */
+  private resolveWeb(providers: readonly TargetProvider[]): void {
+    const cfg = CONFIG.ally;
+    const target = this.target;
+    if (!target || !target.alive) return;
+    if (reachTo(target, this.pos) > cfg.webRange * 1.25) return;
+
+    for (const provider of providers) {
+      if (!provider.combatTargets.includes(target)) continue;
+      provider.damageTarget(target, cfg.webDamage, this.pos);
+      break;
+    }
+    this.onWebShot?.(target);
+    if (!target.alive) {
+      this.onEvent?.('kill', this.heroId!);
+      this.target = null;
+    }
+  }
+
   private resolveSwing(providers: readonly TargetProvider[]): void {
     const cfg = CONFIG.ally;
     const target = this.target;
