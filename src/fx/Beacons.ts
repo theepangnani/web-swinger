@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-export type BeaconKind = 'crime' | 'villain';
+export type BeaconKind = 'crime' | 'villain' | 'backpack';
 
 interface Beacon {
   group: THREE.Group;
@@ -17,6 +17,9 @@ const PILLAR_RADIUS = 3.2;
 const COLOURS: Record<BeaconKind, number> = {
   crime: 0xffb703,
   villain: 0x9440bc,
+  // Cool and quiet, so a backpack never competes with a live objective for
+  // attention. It is something to notice, not something to answer.
+  backpack: 0x4cc9f0,
 };
 
 /**

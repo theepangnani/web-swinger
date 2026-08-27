@@ -27,6 +27,8 @@ const {
   PRESSURE,
   DEFEAT,
   FALL,
+  RESCUE,
+  BACKPACK_MEMORIES,
   BOOK_ENDINGS,
   SIEGE,
   THREADS,
@@ -40,7 +42,7 @@ const {
     ['{ CRIME_KINDS }', 'src/enemies/ThugSystem'],
     ['{ VOICE_LINES }', 'src/audio/Voice'],
     [
-      '{ CHAPTER_BEATS, AMBIENT, DISPATCH, CRIME_LOST, TURN, PRESSURE, DEFEAT, FALL, BOOK_ENDINGS, SIEGE, THREADS, STORY_LINES, StoryDirector, speakerColor, speakerName }',
+      '{ CHAPTER_BEATS, AMBIENT, DISPATCH, CRIME_LOST, TURN, PRESSURE, DEFEAT, FALL, RESCUE, BACKPACK_MEMORIES, BOOK_ENDINGS, SIEGE, THREADS, STORY_LINES, StoryDirector, speakerColor, speakerName }',
       'src/game/Story',
     ],
   ],
@@ -265,6 +267,8 @@ console.log('[7] recorded-clip indices');
   }
   for (const [villain, script] of Object.entries(DEFEAT)) checkScript(script, `DEFEAT.${villain}`);
   checkScript(FALL, 'FALL');
+  for (const [who, script] of Object.entries(RESCUE)) checkScript(script, `RESCUE.${who}`);
+  BACKPACK_MEMORIES.forEach((script, i) => checkScript(script, `backpack.${i}`));
   for (const entry of AMBIENT) checkScript(entry.script, 'ambient');
   for (const [kind, scripts] of Object.entries(DISPATCH)) {
     scripts.forEach((script, i) => checkScript(script, `dispatch.${kind}.${i}`));
@@ -509,6 +513,27 @@ console.log('[12] Miles-specific dialogue is gated');
     }
   }
 
+  // RESCUE is the deliberate exception, and worth stating rather than quietly
+  // skipping: it is keyed by *who arrives*, so Miles only ever speaks in the
+  // entry used when Miles is the one who came. The check is that the keying
+  // holds — a Miles line under the PETER key would be exactly the bug.
+  for (const [arriving, script] of Object.entries(RESCUE)) {
+    for (const [who] of script) {
+      if (who !== 'HERO' && who !== arriving) {
+        fail(`RESCUE.${arriving} has a line from ${who}, who is not the one arriving`);
+        bad++;
+      }
+    }
+  }
+
+  // Backpacks are found by whoever is wearing the mask, in any book.
+  for (const script of BACKPACK_MEMORIES) {
+    if (mentionsMiles(script)) {
+      fail('a backpack memory names Miles, but they are found in every book');
+      bad++;
+    }
+  }
+
   if (!bad) ok('nothing addresses Miles on a night the player could be Peter');
 }
 
@@ -679,7 +704,13 @@ console.log('[14] recorded voice pack');
     console.log('  skipped — no pack installed (the game falls back to synthesis)');
   } else {
     const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+    // Entries may be a bare path (a pack assembled by hand) or a path with the
+    // duration measured off the file (a generated one).
+    const pathOf = (e) => (typeof e === 'string' ? e : e.path);
+    const secondsOf = (e) => (typeof e === 'string' ? 0 : (e.seconds ?? 0));
     let missing = 0;
+    let untimed = 0;
+    let stale = 0;
     let empty = 0;
     let clips = 0;
     let bytes = 0;
@@ -698,7 +729,8 @@ console.log('[14] recorded voice pack');
         if (paths.length !== lines.length) {
           fail(`${speaker}.${event}: ${paths.length} clips for ${lines.length} lines — indices will wrap`);
         }
-        for (const relative of paths) {
+        for (const entry of paths) {
+          const relative = pathOf(entry);
           const file = join(ROOT, 'public', 'voice', relative);
           if (!existsSync(file)) {
             if (missing < 5) fail(`${speaker}.${event}: ${relative} is in the manifest but not on disk`);
@@ -706,6 +738,26 @@ console.log('[14] recorded voice pack');
             continue;
           }
           const size = statSync(file).size;
+
+          // The duration is what stops a line being cut off mid-sentence.
+          // Without it the game falls back to guessing from word count, which
+          // measured 9% of this pack short — so a zero here is a silent
+          // regression to the exact bug this replaced.
+          const stated = secondsOf(entry);
+          if (stated <= 0) {
+            if (untimed < 3) fail(`${relative} has no duration — that line will be cut off`);
+            untimed++;
+          } else {
+            // 48 kbit CBR, so the file size is the duration. A mismatch means
+            // the manifest describes a clip that has since been re-rendered.
+            const measured = (size * 8) / 48000;
+            if (Math.abs(measured - stated) > 0.35) {
+              if (stale < 3) {
+                fail(`${relative}: manifest says ${stated}s, the file is ${measured.toFixed(2)}s`);
+              }
+              stale++;
+            }
+          }
           // A few hundred bytes is a header and nothing else — the shape an
           // interrupted or refused render leaves behind.
           if (size < 1024) {
@@ -724,14 +776,17 @@ console.log('[14] recorded voice pack');
     // moment, wrong words, and nothing anywhere would report it.
     const owner = new Map();
     for (const [speaker, events] of Object.entries(manifest)) {
-      for (const [event, paths] of Object.entries(events)) {
-        paths.forEach((relative, i) => {
+      for (const [event, entries] of Object.entries(events)) {
+        entries.forEach((entry, i) => {
+          const relative = pathOf(entry);
           const at = `${speaker}.${event}[${i}]`;
           if (owner.has(relative)) fail(`${at} and ${owner.get(relative)} are the same file: ${relative}`);
           else owner.set(relative, at);
         });
       }
     }
+    if (untimed > 3) fail(`...and ${untimed - 3} more clips with no duration`);
+    if (stale > 3) fail(`...and ${stale - 3} more stale durations`);
 
     if (missing > 5) fail(`...and ${missing - 5} more missing clips`);
     if (empty > 5) fail(`...and ${empty - 5} more truncated clips`);
@@ -740,8 +795,11 @@ console.log('[14] recorded voice pack');
     if (uncovered.length) {
       console.log(`  note — ${uncovered.length} bank(s) not in the manifest: ${uncovered.slice(0, 3).join(', ')}`);
     }
-    if (!missing && !empty) {
-      ok(`${clips} clips, ${(bytes / 1024 / 1024).toFixed(1)} MB, every manifest entry resolves`);
+    if (!missing && !empty && !untimed && !stale) {
+      ok(
+        `${clips} clips, ${(bytes / 1024 / 1024).toFixed(1)} MB, every entry resolves ` +
+          `and states a duration matching its file`,
+      );
     }
   }
 }

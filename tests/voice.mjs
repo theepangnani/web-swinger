@@ -60,14 +60,31 @@ class FakeAudio {
   removeAttribute(name) {
     if (name === 'src') this.src = '';
   }
+  // Real media elements have these. The stub needs them because VoiceClips
+  // asks an element for its duration when the manifest does not state one.
+  addEventListener(type, handler) {
+    if (type === 'loadedmetadata' && Number.isFinite(this.duration)) handler();
+  }
+  removeEventListener() {}
 }
 
 globalThis.Audio = FakeAudio;
 
 const MANIFEST = {
+  // Bare strings: a pack somebody assembled by hand, which states no durations.
   PETER: { story: ['peter/a.mp3', 'peter/b.mp3', 'peter/missing.mp3'] },
   VENOM: { idle: [] },
   MILES: { story: Array.from({ length: 200 }, (_, i) => `miles/line-${i}.mp3`) },
+  // Path plus measured duration: what the renderer writes. This is the form
+  // that stops a long line being cut off, because word count cannot know how
+  // long a recording actually runs.
+  YURI: {
+    story: [
+      { path: 'yuri/long.mp3', seconds: 7.4 },
+      { path: 'yuri/short.mp3', seconds: 1.9 },
+      { path: 'yuri/untimed.mp3' },
+    ],
+  },
 };
 
 globalThis.fetch = async () => ({
@@ -166,6 +183,51 @@ console.log('[3] a clip that fails after dispatch');
   if (!clips.play('PETER', 'story', 0, 1)) fail('a working clip was refused after a sibling failed');
   else ok('one bad clip does not disable the rest');
   rejects.clear();
+}
+
+// --- 3b. durations ---------------------------------------------------------
+console.log('[3b] clip durations');
+{
+  const clips = new VoiceClips();
+  await clips.load();
+
+  // Stated in the manifest: available immediately, before any audio has
+  // loaded, which is the whole point — the director has to commit to a
+  // duration at the moment it starts the line.
+  let reported = null;
+  clips.play('YURI', 'story', 0, 1, undefined, (s) => (reported = s));
+  if (reported !== 7.4) fail(`stated duration reported as ${reported}, expected 7.4`);
+  else ok('a stated duration is reported synchronously');
+
+  // No duration in the manifest: fall back to asking the element, once it
+  // knows. A hand-made pack has to keep working.
+  reported = null;
+  const built = [];
+  const previous = globalThis.Audio;
+  globalThis.Audio = class extends previous {
+    constructor(src) {
+      super(src);
+      this.readyState = 1;
+      this.duration = 3.75;
+      built.push(this);
+    }
+  };
+  const late = new VoiceClips();
+  await late.load();
+  late.play('YURI', 'story', 2, 1, undefined, (s) => (reported = s));
+  globalThis.Audio = previous;
+  if (reported !== 3.75) fail(`element duration reported as ${reported}, expected 3.75`);
+  else ok('an untimed clip falls back to the element');
+
+  // A bare-string pack must not break on the way through.
+  let ok3 = true;
+  try {
+    clips.play('PETER', 'story', 0, 1, undefined, () => {});
+  } catch (err) {
+    ok3 = false;
+    fail(`a bare-string manifest threw: ${err}`);
+  }
+  if (ok3) ok('a manifest of bare strings still plays');
 }
 
 // --- 4. the cache is bounded ---------------------------------------------

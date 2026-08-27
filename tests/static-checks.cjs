@@ -409,5 +409,72 @@ console.log('[11] defeat has a cost');
 
 console.log('');
 
+// --- 12. recovery, reinforcements, victims, collectibles ------------------
+console.log('[12] the fight, and the city around it');
+{
+  const enemySrc = read(path.join(ROOT, 'src/enemies/EnemySystem.ts'));
+  const thugSrc = read(path.join(ROOT, 'src/enemies/ThugSystem.ts'));
+  const hudSrc = read(path.join(ROOT, 'src/ui/HUD.ts'));
+
+  // --- bosses recovering ---
+  // Without this the winning move against every boss is to break off, heal,
+  // and come back to a boss waiting at exactly the health you left them.
+  if (!/updateRegen\(/.test(enemySrc)) fail('bosses no longer recover — disengaging is free again');
+  // One shared rule. The symbiote used to have his own, and leaving both in
+  // healed him at twice everyone else's rate.
+  const regenSites = (enemySrc.match(/hp \+ v\.maxHp \* cfg\.fractionPerSecond/g) || []).length
+    + (enemySrc.match(/hp \+ cfg\.regenPerSecond \* dt/g) || []).length;
+  if (regenSites !== 1) fail(`${regenSites} boss regen implementations; there must be exactly one`);
+
+  // The stagger has to pose. The cocoon branch three lines above says why: a
+  // villain that stops being updated freezes with a stale transform and reads
+  // as the game hanging, not as a stunned enemy.
+  const stun = enemySrc.match(/if \(v\.stunTimer > 0\) \{[\s\S]*?\n {6}\}/);
+  if (!stun) fail('the stagger branch is gone');
+  else {
+    if (!/poseLimbs/.test(stun[0])) fail('a staggered boss is not posed — it will freeze mid-animation');
+    if (!/root\.position\.copy/.test(stun[0])) fail('a staggered boss keeps a stale transform');
+  }
+  // And it has to come before the shove-off, or a boss simply repels out of it.
+  const stunAt = enemySrc.indexOf('if (v.stunTimer > 0)');
+  const repelAt = enemySrc.indexOf('if (this.shouldRepel(v))');
+  if (stunAt < 0 || repelAt < 0 || stunAt > repelAt) {
+    fail('the stagger is checked after the repel — a boss can shove its way out of it');
+  }
+
+  // Invisible, it reads as the damage being broken rather than as a rule.
+  if (!/regenerating: boolean/.test(hudSrc)) fail('recovery is not on the boss readout');
+  if (!/onRegenChanged/.test(gameSrc)) fail('nothing announces a boss starting to recover');
+
+  // --- reinforcements ---
+  if (!/spawnEscort\(/.test(thugSrc)) fail('bosses no longer call anyone in when the fight turns');
+  // They belong to no crime, so nothing else would ever remove them.
+  if (!/sweepEscorts\(/.test(thugSrc)) {
+    fail('escort thugs are never cleared — every boss that turns leaves a permanent handful behind');
+  }
+
+  // --- victims ---
+  // The drain has to wait for the player, exactly as the clock does. Draining
+  // beforehand meant a crime across the city was already at zero on arrival
+  // and failed on the frame it was engaged.
+  const drain = thugSrc.match(/const victim = crime\.victim;\s*\n\s*if \(([^)]*)\)/);
+  if (!drain) fail('the victim drain is gone');
+  else if (!/crime\.engaged/.test(drain[1])) {
+    fail('a victim is hurt before the player arrives — the crime will fail the moment it is engaged');
+  }
+
+  // --- collectibles ---
+  const packSrc = read(path.join(ROOT, 'src/game/Backpacks.ts'));
+  const memories = (read(path.join(ROOT, 'src/game/Story.ts')).match(/BACKPACK_MEMORIES/g) || []).length;
+  if (!memories) fail('backpack dialogue is not in Story.ts, so it has no clip index');
+  if (/const MEMORIES/.test(packSrc)) fail('backpack dialogue has drifted back out of Story.ts');
+  if (!/this\.backpacks\.dispose\(\)/.test(gameSrc)) fail('backpacks are never disposed');
+  if (!/backpacks: this\.backpacks\.serialise\(\)/.test(gameSrc)) fail('found backpacks are not saved');
+
+  console.log('  ok — one shared recovery rule, staggers pose, escorts swept, victims wait, packs saved');
+}
+
+console.log('');
+
 console.log(problems === 0 ? 'ALL CHECKS PASSED' : `${problems} PROBLEM(S) FOUND`);
 process.exit(problems === 0 ? 0 : 1);

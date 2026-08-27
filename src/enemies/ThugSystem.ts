@@ -42,6 +42,28 @@ const COMPOSITION: Record<CrimeKind, { brute: number; gunner: number; min: numbe
   AMBUSH: { brute: 0.55, gunner: 0.65, min: 3, max: 5 },
 };
 
+/**
+ * Which kinds have somebody on the ground.
+ *
+ * A heist crew is robbing a building, not a person, and an ambush came looking
+ * for you — neither has a victim, and inventing one for the sake of symmetry
+ * would make the whole idea decorative.
+ */
+const HAS_VICTIM: Record<CrimeKind, boolean> = {
+  MUGGING: true,
+  SHAKEDOWN: true,
+  HEIST: false,
+  AMBUSH: false,
+};
+
+/** Somebody the crime is happening to. */
+export interface Victim {
+  readonly root: THREE.Group;
+  readonly pos: THREE.Vector3;
+  hp: number;
+  readonly maxHp: number;
+}
+
 export interface Thug extends CombatTarget {
   kind: ThugKind;
   readonly root: THREE.Group;
@@ -71,6 +93,8 @@ export interface Crime {
    * what makes a crime losable rather than merely unfinished.
    */
   timeLeft: number;
+  /** The person this is happening to, for the kinds that have one. */
+  victim: Victim | null;
   /** True if the clock ran out — as opposed to simply being walked away from. */
   failed: boolean;
 }
@@ -102,6 +126,10 @@ export class ThugSystem implements TargetProvider {
   private readonly rng: Rng;
   private readonly disposables: Array<{ dispose(): void }> = [];
   private readonly bodies: ThugFactory;
+  /** Shared victim parts. Two boxes and a sphere, built once for all of them. */
+  private readonly victimTorso: THREE.BoxGeometry;
+  private readonly victimHead: THREE.SphereGeometry;
+  private readonly victimSkin: THREE.MeshStandardMaterial;
   private readonly webMaterial: THREE.MeshBasicMaterial;
   private readonly webGeo: THREE.SphereGeometry;
 
@@ -116,6 +144,10 @@ export class ThugSystem implements TargetProvider {
     this.group.name = 'Crimes';
 
     this.webGeo = new THREE.SphereGeometry(0.85, 10, 8);
+    this.victimTorso = new THREE.BoxGeometry(0.5, 1.0, 0.34);
+    this.victimHead = new THREE.SphereGeometry(0.22, 10, 8);
+    this.victimSkin = new THREE.MeshStandardMaterial({ color: 0xd9c7a8, roughness: 0.85 });
+    this.disposables.push(this.victimTorso, this.victimHead, this.victimSkin);
     this.webMaterial = new THREE.MeshBasicMaterial({
       color: 0xf2f6ff,
       transparent: true,
@@ -180,6 +212,34 @@ export class ThugSystem implements TargetProvider {
       if (!crime.engaged && distance < CONFIG.crimes.engageRadius) {
         crime.engaged = true;
         crime.abandonTimer = 0;
+      }
+
+      // Somebody being hurt in front of you is a clock with a reason attached,
+      // and it starts when you arrive — exactly like the timer, and for the
+      // same reason. Draining it beforehand meant a crime staged across the
+      // city was already at zero by the time you got there, and failed on the
+      // frame you engaged it.
+      const victim = crime.victim;
+      if (victim && victim.hp > 0 && crime.engaged) {
+        let pressing = 0;
+        const reachSq = CONFIG.crimes.victim.reach * CONFIG.crimes.victim.reach;
+        for (const thug of crime.thugs) {
+          if (thug.alive && thug.pos.distanceToSquared(victim.pos) < reachSq) pressing++;
+        }
+        if (pressing > 0) {
+          victim.hp -= CONFIG.crimes.victim.damagePerThug * pressing * dt;
+          // Sinking as they go, so the state is readable from the air without
+          // reading anything.
+          const hurt = 1 - Math.max(0, victim.hp) / victim.maxHp;
+          victim.root.position.y = victim.pos.y - hurt * 0.55;
+          victim.root.rotation.z = hurt * 1.1;
+        }
+        if (victim.hp <= 0) {
+          crime.failed = true;
+          this.despawnCrime(crime);
+          this.onCrimeFailed?.(crime);
+          continue;
+        }
       }
 
       // The clock only runs once the player is actually on the call.
@@ -258,6 +318,26 @@ export class ThugSystem implements TargetProvider {
 
   // ---------------------------------------------------------------- private
 
+  /**
+   * Retires reinforcements the player has left behind.
+   *
+   * Thugs spawned as a boss escort belong to no crime, which is what stops
+   * them completing or failing one — and also meant nothing ever removed them.
+   * Every boss that turned left a permanent handful of enemies standing on a
+   * rooftop somewhere, accumulating for the whole session.
+   */
+  private sweepEscorts(player: Player): void {
+    const range = CONFIG.crimes.engageRadius * 4;
+    const rangeSq = range * range;
+    for (const thug of this.thugs) {
+      if (!thug.alive || thug.crimeId >= 0) continue;
+      if (thug.pos.distanceToSquared(player.pos) > rangeSq) {
+        thug.alive = false;
+        this.pendingReap = true;
+      }
+    }
+  }
+
   private updateSpawning(dt: number, player: Player): void {
     this.spawnTimer -= dt;
     if (this.spawnTimer > 0) return;
@@ -272,6 +352,9 @@ export class ThugSystem implements TargetProvider {
     // at all — which is exactly how it presented: "there is no crime".
     const spawned = this.spawnCrime(player.pos);
     this.spawnTimer = spawned ? CONFIG.crimes.spawnInterval : CONFIG.crimes.retryInterval;
+    // Rides the spawn tick rather than running every frame: they only need
+    // clearing eventually, and this already runs on a comfortable interval.
+    this.sweepEscorts(player);
   }
 
   /** Returns false if nowhere suitable was found. */
@@ -293,8 +376,10 @@ export class ThugSystem implements TargetProvider {
       resolved: false,
       abandonTimer: 0,
       timeLeft: limit > 0 ? limit : Infinity,
+      victim: HAS_VICTIM[kind] ? this.spawnVictim(site) : null,
       failed: false,
     };
+    if (crime.victim) this.group.add(crime.victim.root);
 
     const shape = COMPOSITION[kind];
     const count = Math.round(randRange(this.rng, shape.min, shape.max));
@@ -551,6 +636,57 @@ export class ThugSystem implements TargetProvider {
   }
 
   /**
+   * One person, crouched, in trouble.
+   *
+   * Two boxes and a sphere rather than a rigged body: they never walk, they
+   * are only ever seen from above and at speed, and the thing that has to read
+   * from the air is the posture, not the face.
+   */
+  private spawnVictim(at: THREE.Vector3): Victim {
+    const root = new THREE.Group();
+    root.position.copy(at);
+
+    const torso = new THREE.Mesh(this.victimTorso, this.victimSkin);
+    torso.position.y = 0.62;
+    const head = new THREE.Mesh(this.victimHead, this.victimSkin);
+    head.position.y = 1.15;
+    root.add(torso, head);
+
+    return { root, pos: at.clone(), hp: CONFIG.crimes.victim.hp, maxHp: CONFIG.crimes.victim.hp };
+  }
+
+  /**
+   * Drops a handful of thugs in around a point, outside the crime system.
+   *
+   * Used when a boss fight turns: half health is the moment an Insomniac boss
+   * stops fighting you alone, and it is the only thing in this game that
+   * changes a boss encounter as it goes. They belong to no crime, so clearing
+   * them resolves nothing and abandoning them costs nothing — they are
+   * pressure, not an objective.
+   */
+  spawnEscort(near: THREE.Vector3, count: number): number {
+    let spawned = 0;
+    for (let i = 0; i < count; i++) {
+      const angle = (i / count) * Math.PI * 2 + this.rng() * 0.8;
+      const radius = randRange(this.rng, 7, 15);
+      const roll = this.rng();
+      const kind: ThugKind = roll < 0.35 ? 'BRUTE' : roll < 0.55 ? 'GUNNER' : 'ENFORCER';
+      this.spawnThug(
+        kind,
+        near.x + Math.cos(angle) * radius,
+        near.y,
+        near.z + Math.sin(angle) * radius,
+        // Crime id -1: belongs to nothing, so `checkCrimeResolved` never sees
+        // it, no crime can be completed or failed by these, and `sweepEscorts`
+        // knows to clear them up.
+        -1,
+      );
+      spawned++;
+    }
+    return spawned;
+  }
+
+  /**
    * Gives up every crime the player had joined.
    *
    * Called when the player goes down. These would eventually lapse on their
@@ -573,6 +709,9 @@ export class ThugSystem implements TargetProvider {
     crime.resolved = true;
     this.pendingReap = true;
     for (const thug of crime.thugs) thug.alive = false;
+    // Removed here rather than in `reap`, which only walks thugs and crimes.
+    // A victim left in the scene graph is a body that never leaves the roof.
+    if (crime.victim) this.group.remove(crime.victim.root);
   }
 
   /**

@@ -6,6 +6,15 @@ export interface VillainReadout {
   /** 0..1 */
   health: number;
   distance: number;
+  /**
+   * Recovering, because nobody has hit them for a while.
+   *
+   * On the readout because an invisible mechanic that undoes the player's work
+   * does not read as a rule — it reads as the damage being broken.
+   */
+  regenerating: boolean;
+  /** Staggered, having been interrupted mid-recovery. */
+  stunned: boolean;
 }
 
 export interface AllyReadout {
@@ -284,8 +293,19 @@ export class HUD {
       const bar = row.querySelector<HTMLElement>('.boss-hp');
       const dist = row.querySelector('.boss-dist b');
       if (name && name.textContent !== readout.name) name.textContent = readout.name;
-      if (bar) bar.style.width = `${(clamp(readout.health, 0, 1) * 100).toFixed(1)}%`;
-      const label = `${Math.round(readout.distance)}m`;
+      if (bar) {
+        bar.style.width = `${(clamp(readout.health, 0, 1) * 100).toFixed(1)}%`;
+        // Green while it is climbing back, so the bar itself says what is
+        // happening without the player reading a word.
+        bar.style.background = readout.regenerating ? '#52fa7c' : '';
+      }
+      // Replaces the distance rather than sitting beside it: while a boss is
+      // healing or reeling, how far away they are is not the useful number.
+      const label = readout.stunned
+        ? 'STAGGERED'
+        : readout.regenerating
+          ? 'RECOVERING — go back in'
+          : `${Math.round(readout.distance)}m`;
       if (dist && dist.textContent !== label) dist.textContent = label;
     }
   }
@@ -475,6 +495,19 @@ export class HUD {
     this.setText(this.subtitleText, text);
     this.subtitleTimer = seconds ?? CONFIG.voice.subtitleSeconds;
     this.setStyle(this.subtitle, 'opacity', '1');
+  }
+
+  /**
+   * Keeps the current subtitle up for longer.
+   *
+   * Only ever extends. The exact length of a spoken line is not known until
+   * its audio reports it, which is a moment after the subtitle went up.
+   */
+  extendSubtitle(seconds: number): void {
+    if (seconds > this.subtitleTimer) {
+      this.subtitleTimer = seconds;
+      this.setStyle(this.subtitle, 'opacity', '1');
+    }
   }
 
   showOverlay(message: string, cta: string): void {

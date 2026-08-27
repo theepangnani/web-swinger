@@ -346,7 +346,13 @@ export class Voice {
    * `clip` is the line's index inside its speaker's story bank, so a recorded
    * pack plays the recording of *this* line rather than a different one.
    */
-  line(speaker: string, text: string, clip: number, seconds: number): void {
+  line(
+    speaker: string,
+    text: string,
+    clip: number,
+    seconds: number,
+    onDuration?: (seconds: number) => void,
+  ): void {
     this.lastText = text;
     this.hold(seconds);
     if (!this.enabled) return;
@@ -355,8 +361,15 @@ export class Voice {
     // The fallback is passed in as well as checked, because a clip can fail
     // asynchronously — the synchronous answer is only "a clip was dispatched".
     const speak = this.fallbackFor(text, speaker);
+    // Whatever the recording actually runs for also becomes the bark hold, or
+    // a bark fires over the tail of a line the estimate thought had finished.
+    const learned = (actual: number): void => {
+      this.hold(actual);
+      onDuration?.(actual);
+    };
     const played =
-      clip >= 0 && this.clips.play(speaker, 'story', clip, this.volume * profile.gain, speak);
+      clip >= 0 &&
+      this.clips.play(speaker, 'story', clip, this.volume * profile.gain, speak, learned);
     if (!played) speak();
   }
 

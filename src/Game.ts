@@ -34,6 +34,7 @@ import {
   type GameModeId,
   type StoryEvent,
 } from './game/GameMode';
+import { Backpacks } from './game/Backpacks';
 import { SaveGame } from './game/SaveGame';
 import {
   AMBIENT,
@@ -44,6 +45,7 @@ import {
   DISPATCH,
   FALL,
   PRESSURE,
+  RESCUE,
   SIEGE,
   THREADS,
   TURN,
@@ -95,6 +97,8 @@ export class Game {
   private readonly thugs: ThugSystem;
   private readonly civilians: Civilians;
   private readonly beacons = new Beacons();
+  /** Old backpacks on rooftops — the reason to go anywhere in particular. */
+  private readonly backpacks: Backpacks;
   private readonly beaconTargets: Array<{ position: THREE.Vector3; kind: BeaconKind }> = [];
   private readonly beaconPositions: THREE.Vector3[] = [];
   private readonly gadgets: Gadgets;
@@ -152,6 +156,8 @@ export class Game {
   private banterTimer = 0;
   /** True while the player is below the low-health mark and has been taunted. */
   private pressureSaid = false;
+  /** True once the partner has been called into the current fight. */
+  private rescueCalled = false;
   /** Beats played per side thread, keyed by title. Survives a save. */
   private readonly threadProgress = new Map<string, number>();
   private crimesSinceThread = 0;
@@ -319,6 +325,9 @@ export class Game {
     this.ally = new Ally(this.city);
     this.scene.add(this.ally.root);
 
+    this.backpacks = new Backpacks(this.city);
+    this.scene.add(this.backpacks.group);
+
     const aspect = window.innerWidth / Math.max(1, window.innerHeight);
     this.chase = new ChaseCamera(aspect);
     this.chase.reset(spawn);
@@ -349,12 +358,17 @@ export class Game {
     // bark channel for as long as it is on screen.
     this.story.setHero(this.player.heroId);
     this.story.onLine = (line): void => {
-      // The director already decided how long this line holds the floor, and
-      // the subtitle has to match it: on the fixed bark window a long line
-      // lost its text several seconds before the voice stopped reading it.
+      // The director's figure is a word-count estimate and starts as the floor.
+      // The recording's own length arrives a moment later and wins — measured
+      // against the rendered pack, the estimate alone cut 9% of lines off, the
+      // worst by two seconds.
       const seconds = line.seconds + CONFIG.story.lineTail;
       this.hud.showSubtitle(speakerName(line.speaker), line.text, speakerColor(line.speaker), seconds);
-      this.voice.line(line.speaker, line.text, line.clip, seconds);
+      this.voice.line(line.speaker, line.text, line.clip, seconds, (actual) => {
+        const held = actual + CONFIG.story.lineTail;
+        this.story.extend(held);
+        this.hud.extendSubtitle(held);
+      });
     };
     // Chapter cards ride the same queue so they land between the chapter that
     // just closed and the one about to open, rather than being painted over.
@@ -404,6 +418,24 @@ export class Game {
     // which is what gives free roam and the siege the same moment.
     this.enemies.onTurn = (villain): void => {
       if (!this.playBeat('turn', villain.kind)) this.story.play(TURN[villain.kind]);
+      // The one thing that changes a boss encounter while it is happening.
+      // Scaled by the post-game tier, so a tier-six siege boss brings a crowd.
+      const escort = CONFIG.enemies.escortOnTurn + Math.floor(this.postgameTier / 2);
+      const arrived = this.thugs.spawnEscort(villain.pos, escort);
+      if (arrived > 0) this.sfx.play('alert', 0.5);
+    };
+    // Both sides of the recovery, announced. A boss quietly healing back the
+    // health you spent two minutes taking off is the sort of thing a player
+    // reads as the game cheating unless it is stated plainly.
+    this.enemies.onRegenChanged = (villain): void => {
+      if (!villain.regenerating) return;
+      this.hud.showSubtitle('RECOVERING', `${villain.name} is healing — get back in.`, '#52fa7c');
+      this.sfx.play('alert', 0.4);
+    };
+    this.enemies.onInterrupted = (villain): void => {
+      this.hud.showSubtitle('STAGGERED', `${villain.name} is open.`, '#ffb703');
+      this.sfx.play('heavy', 0.6);
+      this.chase.addShake(0.4);
     };
     this.enemies.onDefeated = (villain): void => {
       this.playBeat('down', villain.kind);
@@ -575,6 +607,7 @@ export class Game {
     this.civilians.dispose();
     this.ally.dispose();
     this.beacons.dispose();
+    this.backpacks.dispose();
     this.gadgets.dispose();
     this.city.dispose();
     this.textures.dispose();
@@ -709,6 +742,8 @@ export class Game {
     this.updateBanter(dt);
     this.updatePressure();
     this.updateTips();
+    this.updateBackpacks(dt);
+    this.updateRescue();
     this.updateBarks(dt);
     this.updateBeacons(dt);
     this.updateMarkers();
@@ -1359,6 +1394,15 @@ export class Game {
   private nearbyVillain(radius: number = CONFIG.story.calmRadius): Villain | null {
     let best: Villain | null = null;
     let bestDistance = radius * radius;
+    // Only once you are near it. A marker visible across the whole city would
+    // turn finding them into following an arrow, which is the opposite of the
+    // point; one that appears when you are already in the district is the city
+    // telling you there is something on this roof.
+    const pack = this.backpacks.nearest(this.player.pos);
+    if (pack && pack.position.distanceTo(this.player.pos) < CONFIG.backpacks.markerRange) {
+      this.beaconTargets.push({ position: pack.position, kind: 'backpack' });
+    }
+
     for (const villain of this.enemies.villains) {
       if (!villain.alive || villain.dormant) continue;
       const distance = villain.pos.distanceToSquared(this.player.pos);
@@ -1449,6 +1493,63 @@ export class Game {
     }
     // Everything eligible is finished. Stop re-checking on every crime.
     this.crimesSinceThread = 0;
+  }
+
+  /**
+   * The other Spider-Man, turning up when a boss fight is going badly.
+   *
+   * Only the chapters written for a team-up fielded a partner, so every solo
+   * boss was a fight with no way out of a losing position except to keep dying
+   * at it. Starting alone is the authored intent and is kept; being left alone
+   * while losing is not.
+   *
+   * Never against a villain who *is* one of the heroes: in those fights the
+   * partner is the thing on the other side of the roof, and summoning them
+   * would field two of the same person.
+   */
+  private updateRescue(): void {
+    const villain = this.nearbyVillain(CONFIG.defeat.killerRadius);
+    if (!villain) {
+      // Out of the fight — arm it again for the next one.
+      this.rescueCalled = false;
+      return;
+    }
+    if (!CONFIG.ally.rescueEnabled || this.rescueCalled || this.ally.active) return;
+    if (healthFraction(this.player) > CONFIG.ally.rescueHealth || this.player.hp <= 0) return;
+
+    // Any hero-locking villain in play settles who you are, and rules out the
+    // only person who could have come.
+    for (const live of this.enemies.villains) {
+      if (live.alive && !live.dormant && requiredHeroFor(live.kind)) return;
+    }
+
+    const partner = nextHero(this.player.heroId);
+    this.rescueCalled = true;
+    this.ally.summon(partner, this.player.pos);
+    this.story.play(RESCUE[partner]);
+  }
+
+  /**
+   * Rooftop backpacks: bobbing them, and picking one up.
+   *
+   * The reward is the scene, not the experience. Everything else in this game
+   * is handed to you by the campaign; this is the only thing you have to go
+   * and find, so it pays in the one currency the rest of the game does not
+   * spend — something the city remembers.
+   */
+  private updateBackpacks(dt: number): void {
+    const found = this.backpacks.update(dt, this.player.pos);
+    if (!found) return;
+
+    this.awardXp(CONFIG.backpacks.xp);
+    this.story.playCard(
+      `BACKPACK ${this.backpacks.found}/${this.backpacks.total}`,
+      'One of Peter\'s. It has been up here a while.',
+    );
+    this.story.play(found.memory);
+    this.sfx.play('levelup', 0.7);
+    this.showTip('backpack');
+    this.markDirty();
   }
 
   /**
@@ -1634,6 +1735,7 @@ export class Game {
         timeOfDay: this.dayNight.time,
         postgameTier: this.postgameTier,
         deaths: this.deaths,
+        backpacks: this.backpacks.serialise(),
         storyState: {
           midBeatPlayed: this.midBeatPlayed,
           ambientCursor: this.ambientCursor,
@@ -1675,6 +1777,7 @@ export class Game {
     // Restore the tier *before* anything spawns, so a revived boss comes back
     // at the strength it had rather than at tier zero.
     this.deaths = data.deaths ?? 0;
+    this.backpacks.restore(data.backpacks ?? []);
     this.postgameTier = data.postgameTier;
     this.enemies.tier = data.postgameTier;
     // Story saves only, and only when a wave was actually reached: a completed
@@ -1733,6 +1836,7 @@ export class Game {
   startMode(mode: GameModeId): void {
     SaveGame.clear();
     this.deaths = 0;
+    this.backpacks.restore([]);
     this.story.clear();
     this.threadProgress.clear();
     this.crimesSinceThread = 0;
@@ -2124,6 +2228,9 @@ export class Game {
     this.chase.addShake(1);
     this.showTip('down');
 
+    // Going down is the clearest possible signal that this fight needs help.
+    this.rescueCalled = false;
+
     const spawn = this.findSpawnNear(this.player.pos);
     this.player.respawn(spawn);
     this.chase.reset(spawn);
@@ -2246,6 +2353,8 @@ export class Game {
         name: v.name,
         health: v.hp / v.maxHp,
         distance: v.pos.distanceTo(player.pos),
+        regenerating: v.regenerating,
+        stunned: v.stunTimer > 0,
       });
     }
     this.villainReadouts.sort((a, b) => a.distance - b.distance);

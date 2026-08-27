@@ -325,6 +325,35 @@ export const CONFIG = {
 
   enemies: {
     /**
+     * Bosses recovering while nobody is hitting them.
+     *
+     * The player regenerates after seven quiet seconds, which meant the winning
+     * move against every boss was to break off, heal, and come back — the boss
+     * waited, at exactly the health you left them. Disengaging is now a trade
+     * rather than a free action: they heal too, and faster.
+     *
+     * Resuming the attack staggers them briefly, so closing back in is
+     * rewarded instead of merely allowed, and the moment the regen ends is
+     * something the player can see happen.
+     */
+    regen: {
+      /** Quiet seconds before a boss starts recovering. */
+      idleSeconds: 8,
+      /** Fraction of maximum health per second once it starts. */
+      fractionPerSecond: 0.05,
+      /** Seconds a boss is staggered when the first hit lands on a regen. */
+      stunSeconds: 1,
+    },
+
+    /**
+     * Thugs a boss calls in when the fight turns against them.
+     *
+     * The only thing in this game that changes a boss encounter while it is
+     * running. Without it every villain fight is one shape from start to
+     * finish: approach, hit, repeat.
+     */
+    escortOnTurn: 3,
+    /**
      * Once a boss engages, it is confined to a sphere around where the fight
      * started, so a fleeing villain stays reachable instead of crossing the
      * whole map.
@@ -497,12 +526,22 @@ export const CONFIG = {
       /** Glider blade swipe when the player closes on him. */
       meleeDamage: 18,
     },
+    /**
+     * Electro, softened after play.
+     *
+     * He is the first boss who never lands, and the numbers did not account
+     * for that: hovering 22 m up with a 95 m zone, he out-ranged everything the
+     * player has while firing every 1.7 s, so the fight was spent closing
+     * distance under fire and being knocked back out of it. Health is down 15%
+     * and the bolt is 40% slower, which cuts the pressure while you climb
+     * without touching what he does when you get there.
+     */
     electro: {
-      hp: 1080,
+      hp: 918,
       zoneRange: 95,
       hoverHeight: 22,
       bobAmplitude: 1.6,
-      boltCooldown: 1.7,
+      boltCooldown: 2.4,
       boltDamage: 11,
       /** Bolt visual lifetime. */
       boltLife: 0.18,
@@ -617,6 +656,18 @@ export const CONFIG = {
    */
   ally: {
     maxHp: 220,
+    /**
+     * The other Spider-Man turning up when a fight is going badly.
+     *
+     * Only the chapters written for a team-up used to field a partner, which
+     * left the solo boss fights with no way out of a losing position but to
+     * keep dying at them. This is the valve: start alone, as written, and get
+     * help if you are actually losing. It never fires against a villain who
+     * *is* one of the heroes — there the partner is the thing you are fighting.
+     */
+    rescueEnabled: true,
+    /** Health fraction below which they come. */
+    rescueHealth: 0.35,
     /** Where they try to sit relative to you when nothing is happening. */
     followDistance: 11,
     followHeight: 1.4,
@@ -759,6 +810,37 @@ export const CONFIG = {
     invulnScale: 3,
     /** Crimes you were in the middle of are lost. */
     losesCrimes: true,
+  },
+
+  /**
+   * Old backpacks hidden on rooftops. See `src/game/Backpacks.ts`.
+   *
+   * The city was a very good playground with no reason to go anywhere in
+   * particular. These are the reason.
+   */
+  backpacks: {
+    count: 12,
+    /** How far from the chosen point to look for a suitable roof, metres. */
+    searchRadius: 260,
+    /**
+     * Deliberately fussy. A backpack on a low, wide roof is something you walk
+     * past; on a narrow tower it is somewhere you have to aim for, which is the
+     * only thing that makes finding one an achievement.
+     */
+    minRoofWidth: 10,
+    minRoofHeight: 70,
+    /** How close you have to get. Collection is proximity, not a keypress. */
+    reach: 5,
+    /** Experience for each one. */
+    xp: 140,
+    /**
+     * How close before a backpack gets a beacon, metres.
+     *
+     * Short on purpose. A marker across the whole city turns finding them into
+     * following an arrow; one that appears when you are already overhead is
+     * the city pointing at a roof.
+     */
+    markerRange: 220,
   },
 
   fx: {
@@ -956,6 +1038,20 @@ export const CONFIG = {
       SHAKEDOWN: 60,
       HEIST: 70,
       AMBUSH: 0,
+    },
+    /**
+     * Somebody on the ground, for the kinds where there is one.
+     *
+     * A clock alone is arbitrary — "hurry up because the design says so". A
+     * person being hurt in front of you is the same pressure with a reason
+     * attached, and it is the reason a mugging is urgent and an ambush is not.
+     */
+    victim: {
+      hp: 100,
+      /** Health lost per second per thug still standing within reach. */
+      damagePerThug: 5.5,
+      /** How close a thug has to be to keep hurting them, metres. */
+      reach: 9,
     },
     /** XP multiplier per kind, against `progression.xp.crime`. */
     rewards: {

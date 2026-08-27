@@ -132,6 +132,10 @@ export interface Villain {
    * once where a boss guards, reforms or is revived.
    */
   turned: boolean;
+  /** Recovering health because nobody has hit them for a while. */
+  regenerating: boolean;
+  /** Seconds of stagger left after being interrupted mid-recovery. */
+  stunTimer: number;
 }
 
 const _v1 = new THREE.Vector3();
@@ -265,12 +269,39 @@ export class EnemySystem implements TargetProvider {
   }
 
   /**
+   * Health coming back while nobody is hitting them.
+   *
+   * Deliberately not conditional on being in an arena: the behaviour this
+   * exists to price is *leaving*, so a boss the player has flown away from is
+   * exactly the one that should be healing. A boss at full health regenerates
+   * nothing and never announces anything.
+   */
+  private updateRegen(dt: number, v: Villain): void {
+    const cfg = CONFIG.enemies.regen;
+    const should = v.sinceHit > cfg.idleSeconds && v.hp < v.maxHp;
+    if (should) {
+      v.hp = Math.min(v.maxHp, v.hp + v.maxHp * cfg.fractionPerSecond * dt);
+      // Healing back over the halfway mark re-arms the mid-fight line, for the
+      // same reason relief does: the fight has turned back.
+      if (v.hp > v.maxHp * 0.5) v.turned = false;
+    }
+    if (should !== v.regenerating) {
+      v.regenerating = should;
+      this.onRegenChanged?.(v);
+    }
+  }
+
+  /**
    * Raised once per fight, the first time a villain drops below half health.
    *
    * The moment a boss fight turns is the one point in it with anything new to
    * say, and there was no way to know it had happened from outside.
    */
   onTurn: ((villain: Villain) => void) | null = null;
+  /** Raised when a boss starts or stops recovering, so the HUD can say so. */
+  onRegenChanged: ((villain: Villain) => void) | null = null;
+  /** Raised when a hit interrupts a recovery and staggers them. */
+  onInterrupted: ((villain: Villain) => void) | null = null;
 
   private readonly activeTargets: CombatTarget[] = [];
   private readonly bolts: Bolt[] = [];
@@ -417,6 +448,8 @@ export class EnemySystem implements TargetProvider {
     fallen.hitFlash = 0;
     fallen.arenaActive = false;
     fallen.turned = false;
+    fallen.regenerating = false;
+    fallen.stunTimer = 0;
     return fallen;
   }
 
@@ -450,6 +483,8 @@ export class EnemySystem implements TargetProvider {
     villain.vel.set(0, 0, 0);
     villain.stamina = 1;
     villain.turned = false;
+    villain.regenerating = false;
+    villain.stunTimer = 0;
     villain.damageScale = 1;
     villain.chargeTimer = 0;
     villain.sinceHit = 0;
@@ -541,6 +576,8 @@ export class EnemySystem implements TargetProvider {
       v.specialCooldown = Math.max(0, v.specialCooldown - dt);
       v.hitFlash = Math.max(0, v.hitFlash - dt * 4);
       v.sinceHit += dt;
+      v.stunTimer = Math.max(0, v.stunTimer - dt);
+      this.updateRegen(dt, v);
       v.poiseCooldown = Math.max(0, v.poiseCooldown - dt);
       if (v.poiseTimer > 0) {
         v.poiseTimer -= dt;
@@ -561,6 +598,19 @@ export class EnemySystem implements TargetProvider {
       // reads as the game hanging rather than as a stunned enemy.
       if (v.webbed > 0) {
         v.webbed = Math.max(0, v.webbed - dt);
+        this.poseLimbs(dt, v);
+        v.root.position.copy(v.pos);
+        this.applyPivotScale(v);
+        continue;
+      }
+
+      // Staggered by a hit that interrupted their recovery. Ahead of the repel
+      // and drift checks, because a stagger that a boss can immediately shove
+      // its way out of is not a stagger — and like the cocoon above, the limbs
+      // and transform are still updated, or they freeze mid-pose with a stale
+      // matrix and read as the game hanging.
+      if (v.stunTimer > 0) {
+        v.telegraphing = false;
         this.poseLimbs(dt, v);
         v.root.position.copy(v.pos);
         this.applyPivotScale(v);
@@ -1466,10 +1516,9 @@ export class EnemySystem implements TargetProvider {
     const cfg = CONFIG.enemies.symbiote;
     const dist = v.pos.distanceTo(player.pos);
 
-    // Bleeds back health between exchanges, so trading hits loses to combos.
-    if (v.sinceHit > cfg.regenDelay && v.hp < v.maxHp) {
-      v.hp = Math.min(v.maxHp, v.hp + cfg.regenPerSecond * dt);
-    }
+    // He used to bleed health back between exchanges on his own timer. That is
+    // now the shared rule in `updateRegen`, which every boss is on — leaving
+    // it here as well would heal him at twice the rate of anyone else.
 
     if (v.phase === 'DASH_WINDUP') {
       v.timer -= dt;
@@ -1960,6 +2009,14 @@ export class EnemySystem implements TargetProvider {
     v.poiseTimer = CONFIG.enemies.poise.window;
     this.spawnImpact(v.pos, v.color, 3);
 
+    // Interrupting a recovery is the point of having one: coming back in is
+    // rewarded with an opening rather than merely being allowed.
+    if (v.regenerating) {
+      v.regenerating = false;
+      v.stunTimer = CONFIG.enemies.regen.stunSeconds;
+      this.onInterrupted?.(v);
+    }
+
     // The fight turning is worth saying out loud, and only the first time.
     if (!v.turned && v.hp > 0 && v.hp < v.maxHp * 0.5) {
       v.turned = true;
@@ -2104,6 +2161,8 @@ export class EnemySystem implements TargetProvider {
       webbed: 0,
       dormant: true,
       turned: false,
+      regenerating: false,
+      stunTimer: 0,
       damageScale: 1,
       sinceHit: 0,
       chargeTimer: 0,

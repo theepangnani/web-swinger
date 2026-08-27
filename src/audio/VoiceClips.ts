@@ -27,7 +27,25 @@
 const MANIFEST_URL = './voice/manifest.json';
 const CLIP_BASE = './voice/';
 
-type Manifest = Record<string, Record<string, readonly string[]>>;
+/**
+ * A clip, and how long it runs.
+ *
+ * A bare string is still accepted, because a hand-assembled pack should not
+ * have to state durations it does not know — but a generated one always does,
+ * and that is what stops a line being cut off. Without it the only source of
+ * truth is a word-count guess, which measured 9% of the pack short.
+ */
+type Entry = string | { readonly path: string; readonly seconds?: number };
+
+type Manifest = Record<string, Record<string, readonly Entry[]>>;
+
+function entryPath(entry: Entry): string {
+  return typeof entry === 'string' ? entry : entry.path;
+}
+
+function entrySeconds(entry: Entry): number {
+  return typeof entry === 'string' ? 0 : (entry.seconds ?? 0);
+}
 
 export class VoiceClips {
   /** True once a manifest has been found and at least one clip registered. */
@@ -96,12 +114,14 @@ export class VoiceClips {
     index: number,
     volume: number,
     onFailure?: () => void,
+    onDuration?: (seconds: number) => void,
   ): boolean {
     if (!this.ready || !this.manifest) return false;
     const paths = this.manifest[speaker]?.[event];
     if (!paths || paths.length === 0) return false;
 
-    const path = paths[index % paths.length]!;
+    const entry = paths[index % paths.length]!;
+    const path = entryPath(entry);
     // Known bad: say so now, so the caller synthesises immediately rather than
     // after a round trip that is going to fail again.
     if (this.broken.has(path)) return false;
@@ -122,6 +142,28 @@ export class VoiceClips {
     audio.volume = volume < 0 ? 0 : volume > 1 ? 1 : volume;
     audio.currentTime = 0;
     this.current = audio;
+    // The manifest's own figure first, because it is exact and available now.
+    // Failing that, the element's, as soon as it knows — a pack assembled by
+    // hand has no durations in it, and guessing from word count is what put
+    // 9% of the generated pack's lines on screen for less time than they took
+    // to say.
+    const stated = entrySeconds(entry);
+    if (stated > 0) {
+      onDuration?.(stated);
+    } else if (onDuration) {
+      const report = (): void => {
+        if (Number.isFinite(audio.duration) && audio.duration > 0) onDuration(audio.duration);
+      };
+      // Guarded because this is a side errand: the line is already playing, and
+      // an exception raised while asking how long it runs would abandon it.
+      try {
+        if (audio.readyState >= 1) report();
+        else audio.addEventListener('loadedmetadata', report, { once: true });
+      } catch {
+        // No duration available. The estimate stands.
+      }
+    }
+
     const dispatched = audio;
     void audio.play().catch(() => {
       // Only stand down if nothing else has started in the meantime; a bark

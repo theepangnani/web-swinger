@@ -66,6 +66,11 @@ export const TIPS: Readonly<Record<string, Tip>> = {
     label: 'GADGETS',
     text: 'G throws the selected gadget, Shift+G cycles. Web-bombs settle a crowd faster than fists do.',
   },
+  backpack: {
+    id: 'backpack',
+    label: 'FOUND SOMETHING',
+    text: 'There are more of these on the rooftops. They only show up once you are close, so look up.',
+  },
   down: {
     id: 'down',
     label: 'GOING DOWN',

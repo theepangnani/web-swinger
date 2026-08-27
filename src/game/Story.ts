@@ -849,6 +849,27 @@ export const DEFEAT: Partial<Record<VillainKind, Script>> = {
   ],
 };
 
+/**
+ * The other Spider-Man arriving because the fight is going badly.
+ *
+ * Keyed by who is arriving, so `HERO` is always the player and the named
+ * speaker is always the partner. That is why the named speaker being Miles is
+ * correct here and nowhere else: he is only ever in this bank when he is the
+ * one who came.
+ */
+export const RESCUE: Readonly<Record<'PETER' | 'MILES', Script>> = {
+  PETER: [
+    ['PETER', 'I heard the radio. Move over.'],
+    ['HERO', 'I had it.'],
+    ['PETER', 'You had some of it.'],
+  ],
+  MILES: [
+    ['MILES', 'You looked like you could use a hand.'],
+    ['HERO', 'I could.'],
+    ['MILES', 'Say that again later. I want it on the record.'],
+  ],
+};
+
 /** Nobody beat you — the city did. */
 export const FALL: Script = [
   ['YURI', 'We lost you off the radio for a moment there. Say something.'],
@@ -918,6 +939,51 @@ export const SIEGE: readonly Script[] = [
   [
     ['YURI', 'I have nothing left to send you.'],
     ['HERO', 'Then it is me. Fine. It is always me.'],
+  ],
+];
+
+/**
+ * What is in them.
+ *
+ * Written as Peter's, and delivered by whoever is holding the mask — Miles
+ * finding one is Miles reading somebody else's diary, which is a better scene
+ * than Peter narrating his own. The list is walked in order rather than picked
+ * at random, so the early ones are the light ones and the last is the one worth
+ * getting to.
+ */
+export const BACKPACK_MEMORIES: readonly Script[] = [
+  [
+    ['HERO', 'Somebody left a backpack up here. It has been here a while.'],
+    ['MJ', 'What is in it?'],
+    ['HERO', 'A camera with no film and a very old sandwich.'],
+  ],
+  [['HERO', 'Physics notes. Half of them are wrong and all of them are in my handwriting.']],
+  [
+    ['HERO', 'A bus pass from four years ago.'],
+    ['MJ', 'You kept a bus pass.'],
+    ['HERO', 'I kept everything. That was sort of the problem.']],
+  [['HERO', 'One glove. Home-made. The stitching is a war crime.']],
+  [
+    ['HERO', 'A photograph of the three of us on the bridge.'],
+    ['MJ', 'I remember that day. You were unbearable.'],
+  ],
+  [['HERO', 'A first web-shooter. It leaks. It always leaked.']],
+  [
+    ['HERO', 'An unopened letter from Empire State.'],
+    ['MJ', 'You never opened it?'],
+    ['HERO', 'I already knew what it said.'],
+  ],
+  [['MAY', 'You used to leave those bags everywhere. I stopped moving them eventually.']],
+  [['HERO', 'A ticket stub. I do not remember the film, only who I went with.']],
+  [
+    ['HERO', 'A list, in pen. Things to do when there is time.'],
+    ['MJ', 'Anything crossed off?'],
+    ['HERO', 'Two. Out of thirty-one.'],
+  ],
+  [['HERO', 'A spare mask, cut from the wrong fabric. It never breathed properly.']],
+  [
+    ['HERO', 'A cassette. Uncle Ben labelled it "for the drive".'],
+    ['MAY', 'He made one for every journey. Bring it home and we will find something to play it on.'],
   ],
 ];
 
@@ -1049,9 +1115,11 @@ function buildBanks(): Record<string, string[]> {
     for (const script of Object.values(table)) if (script) addScript(script);
   }
   addScript(FALL);
+  for (const script of Object.values(RESCUE)) addScript(script);
   for (const script of Object.values(BOOK_ENDINGS)) addScript(script);
   for (const script of SIEGE) addScript(script);
   for (const thread of THREADS) for (const script of thread.beats) addScript(script);
+  for (const script of BACKPACK_MEMORIES) addScript(script);
   for (const entry of AMBIENT) addScript(entry.script);
   for (const scripts of Object.values(DISPATCH)) for (const script of scripts) addScript(script);
   for (const script of CRIME_LOST) addScript(script);
@@ -1067,13 +1135,25 @@ export const STORY_LINES: Readonly<Record<string, readonly string[]>> = buildBan
 export type ScenePriority = 'STORY' | 'AMBIENT';
 
 /**
- * Reading pace. Long lines get longer, but nothing sits on screen forever and
- * nothing flashes past unread.
+ * How long a line needs, when nothing better is known.
+ *
+ * An estimate from word count, and a poor one: measured against the rendered
+ * pack, the previous numbers cut off 52 of 602 clips, the worst by two full
+ * seconds. Word count cannot know that Venom is slowed fourteen percent, that
+ * May pauses, or that "Where was Spider-Man? Late!" is three sentences worth
+ * of breath in six words. So this is now only the floor and the fallback — a
+ * pack reports its real durations and `extend` overrides this outright.
+ *
+ * The numbers are deliberately generous. Being a second too slow is a beat;
+ * being a second too fast is a line the player never heard the end of.
  */
 function lineSeconds(text: string): number {
   const words = text.split(/\s+/).length;
-  const seconds = 1.4 + words * 0.33;
-  return seconds < 2.1 ? 2.1 : seconds > 6.5 ? 6.5 : seconds;
+  // Roughly 2.4 words a second, plus a beat for each sentence break, plus a
+  // moment to read it after it has been said.
+  const stops = (text.match(/[.!?]/g) ?? []).length;
+  const seconds = 1.1 + words / 2.4 + stops * 0.25;
+  return seconds < 2.4 ? 2.4 : seconds > 12 ? 12 : seconds;
 }
 
 /**
@@ -1155,6 +1235,19 @@ export class StoryDirector {
     this.pending.push([{ card: { label, title, seconds: CARD_SECONDS } }]);
     this.announcedIdle = false;
     return true;
+  }
+
+  /**
+   * Holds the current line open for longer.
+   *
+   * The director has to commit to a duration when it starts a line, but the
+   * only accurate answer — how long the recording actually runs — may arrive a
+   * moment later, once the audio element has its metadata. This is how that
+   * answer gets applied, and it only ever extends: a clip finishing early is
+   * fine, a subtitle vanishing mid-sentence is not.
+   */
+  extend(seconds: number): void {
+    if (seconds > this.timer) this.timer = seconds;
   }
 
   /** Abandons everything queued — used when a save loads or a mode restarts. */

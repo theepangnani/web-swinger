@@ -31,6 +31,8 @@ export interface SaveData {
   postgameTier: number;
   /** Times the player has gone down. Optional: absent on older saves. */
   deaths?: number;
+  /** Ids of the backpacks already found. */
+  backpacks?: number[];
   /**
    * Where the narration had got to.
    *
@@ -84,6 +86,9 @@ export class SaveGame {
         timeOfDay: numberOr(parsed.timeOfDay, 0.78),
         postgameTier: numberOr(parsed.postgameTier, 0),
         deaths: numberOr(parsed.deaths, 0),
+        backpacks: Array.isArray(parsed.backpacks)
+          ? parsed.backpacks.filter((n): n is number => typeof n === 'number')
+          : [],
         storyState: readStoryState(parsed.storyState),
         savedAt: numberOr(parsed.savedAt, 0),
       };

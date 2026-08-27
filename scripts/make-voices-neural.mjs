@@ -33,6 +33,7 @@
 import { spawn } from 'node:child_process';
 import {
   existsSync,
+  statSync,
   mkdirSync,
   readFileSync,
   readdirSync,
@@ -47,6 +48,19 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT_DIR = join(ROOT, 'public', 'voice');
+
+/**
+ * Constant bitrate per engine, in bits per second.
+ *
+ * Both engines are asked for CBR mp3, which makes duration exactly
+ * `bytes * 8 / bitrate` — no decoder, no ffprobe, no dependency. The manifest
+ * carries those durations because the alternative is the game guessing from
+ * word count, and that guess cut 9% of the pack's lines off mid-sentence.
+ */
+const BITRATE = {
+  edge: 48000, // edge-tts default: audio-24khz-48kbitrate-mono-mp3
+  eleven: 64000, // mp3_44100_64
+};
 
 const args = process.argv.slice(2);
 const has = (flag) => args.includes(flag);
@@ -308,7 +322,9 @@ for (const [speaker, events] of Object.entries(VOICE_LINES)) {
     const paths = [];
     for (let i = 0; i < lines.length; i++) {
       const name = `${slug(event)}-${i}-${slug(lines[i])}.mp3`;
-      paths.push(`${slug(speaker)}/${name}`);
+      const relative = `${slug(speaker)}/${name}`;
+      // Filled in after rendering, from the file itself.
+      paths.push({ path: relative, seconds: 0 });
       total++;
       characters += lines[i].length;
 
@@ -355,8 +371,26 @@ if (jobs.length > 0) {
   else await renderEleven(jobs);
 }
 
+// Durations are measured after rendering rather than predicted before it, so
+// they describe the file that actually exists. A clip that failed to render
+// keeps a zero, and the game falls back to its estimate for that one line
+// rather than believing a length nothing is behind.
+const rate = BITRATE[engine];
+let timed = 0;
+for (const events of Object.values(manifest)) {
+  for (const entries of Object.values(events)) {
+    for (const entry of entries) {
+      const file = join(OUT_DIR, entry.path);
+      if (!existsSync(file)) continue;
+      entry.seconds = Number(((statSync(file).size * 8) / rate).toFixed(2));
+      timed++;
+    }
+  }
+}
+
 mkdirSync(OUT_DIR, { recursive: true });
 writeFileSync(join(OUT_DIR, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
+console.log(`${timed} clip duration(s) measured into the manifest`);
 console.log(`\nmanifest written to ${join(OUT_DIR, 'manifest.json')}`);
 
 const onDisk = countClips();
@@ -396,7 +430,7 @@ function countClips() {
 function findOrphans() {
   const wanted = new Set();
   for (const events of Object.values(manifest)) {
-    for (const paths of Object.values(events)) for (const p of paths) wanted.add(p);
+    for (const entries of Object.values(events)) for (const e of entries) wanted.add(e.path);
   }
   const dead = [];
   for (const speaker of Object.keys(VOICE_LINES)) {
