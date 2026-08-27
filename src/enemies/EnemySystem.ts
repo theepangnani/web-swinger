@@ -134,6 +134,28 @@ export interface Villain {
   turned: boolean;
   /** Recovering health because nobody has hit them for a while. */
   regenerating: boolean;
+  /**
+   * How far through whatever they came here to do, 0..1.
+   *
+   * Only climbs while nobody is contesting it, which is what turns "ignore the
+   * boss and clear crimes instead" from a free choice into a trade.
+   */
+  objective: number;
+  /** Objectives finished this fight. Each one made them harder. */
+  objectivesDone: number;
+  /**
+   * The player has been close to them at least once.
+   *
+   * Objectives only run after this. Free roam brings the whole roster out at
+   * once, and without it five villains the player has never laid eyes on are
+   * all robbing, draining and bombing their way through the city from the
+   * first second — announcing each one, to somebody who has no idea who is
+   * talking or where. Being ignored is only a thing that can happen to
+   * somebody you have met.
+   */
+  met: boolean;
+  /** Outgoing damage multiplier, raised by each objective they complete. */
+  empowered: number;
   /** Seconds of stagger left after being interrupted mid-recovery. */
   stunTimer: number;
 }
@@ -200,6 +222,22 @@ const POSE_PROFILES: Record<VillainKind, PoseProfile> = {
 };
 
 /** Resting behaviour each villain falls back to between attacks. */
+/**
+ * What each villain is up there for.
+ *
+ * Shown on the boss readout while it is in progress. Written as a present
+ * participle because that is what it is — a thing happening while the player
+ * decides whether to go and stop it, rather than a label on an enemy.
+ */
+export const OBJECTIVE: Record<VillainKind, string> = {
+  'BLACK CAT': 'Emptying the vault',
+  ELECTRO: 'Draining the substation',
+  SANDMAN: 'Tearing up the block',
+  VENOM: 'Hunting the street',
+  'GREEN GOBLIN': 'Bombing the district',
+  'SYMBIOTE PETER': 'Working through anyone nearby',
+};
+
 function startPhase(kind: VillainKind): string {
   switch (kind) {
     case 'BLACK CAT':
@@ -269,6 +307,42 @@ export class EnemySystem implements TargetProvider {
   }
 
   /**
+   * What they came here to do, and how close they are to having done it.
+   *
+   * Contested by presence rather than by damage: standing in front of Sandman
+   * stops him tearing up the site whether or not you are landing hits, which
+   * is both truer and kinder than requiring a damage stream from a player who
+   * is being knocked off the roof.
+   *
+   * Finishing pays them and then starts again. It never removes them, because
+   * a story chapter is not finished until they are beaten and a villain who
+   * completed an objective and left would strand it.
+   */
+  private updateObjective(dt: number, v: Villain, playerPos: THREE.Vector3): void {
+    const cfg = CONFIG.enemies.objectives;
+    const contested = v.pos.distanceToSquared(playerPos) < cfg.contestRadius * cfg.contestRadius;
+    if (contested) {
+      // Arriving is what starts the clock running on leaving again.
+      v.met = true;
+      return;
+    }
+    if (!v.met) return;
+    // Cocooned by a gadget and left there: they are not working at anything.
+    if (v.webbed > 0 || v.stunTimer > 0) return;
+    if (v.objectivesDone >= cfg.maxPerFight) return;
+
+    v.objective += dt / cfg.seconds;
+    if (v.objective < 1) return;
+
+    v.objective = 0;
+    v.objectivesDone++;
+    v.hp = Math.min(v.maxHp, v.hp + v.maxHp * cfg.reward);
+    if (v.hp > v.maxHp * 0.5) v.turned = false;
+    v.empowered *= cfg.empower;
+    this.onObjectiveDone?.(v);
+  }
+
+  /**
    * Health coming back while nobody is hitting them.
    *
    * Deliberately not conditional on being in an arena: the behaviour this
@@ -302,6 +376,8 @@ export class EnemySystem implements TargetProvider {
   onRegenChanged: ((villain: Villain) => void) | null = null;
   /** Raised when a hit interrupts a recovery and staggers them. */
   onInterrupted: ((villain: Villain) => void) | null = null;
+  /** Raised when a villain finishes what they came to do. */
+  onObjectiveDone: ((villain: Villain) => void) | null = null;
 
   private readonly activeTargets: CombatTarget[] = [];
   private readonly bolts: Bolt[] = [];
@@ -352,10 +428,23 @@ export class EnemySystem implements TargetProvider {
    * Every point of damage a villain deals to the player passes through here.
    *
    * A single choke point is what makes the post-game tier possible without
-   * threading a multiplier through a dozen attack implementations.
+   * threading a multiplier through a dozen attack implementations. It now
+   * takes the villain as well, because the other multiplier is per-villain:
+   * a boss who has been left alone long enough to finish what they came for
+   * hits harder for the rest of the fight, and that has to be attributable.
+   *
+   * `null` is for damage nobody owns — a bomb already in the air does not know
+   * who dropped it, and threading an owner through the projectile pool to
+   * carry a 15% multiplier would cost more than it is worth.
    */
-  private hurtPlayer(player: Player, amount: number, knockback?: THREE.Vector3): boolean {
-    return player.takeDamage(amount * this.tierDamageScale, knockback);
+  private hurtPlayer(
+    v: Villain | null,
+    player: Player,
+    amount: number,
+    knockback?: THREE.Vector3,
+  ): boolean {
+    const scale = this.tierDamageScale * (v ? v.empowered : 1);
+    return player.takeDamage(amount * scale, knockback);
   }
 
   /** Villains still waiting to be drawn out by clearing crime. */
@@ -449,6 +538,10 @@ export class EnemySystem implements TargetProvider {
     fallen.arenaActive = false;
     fallen.turned = false;
     fallen.regenerating = false;
+    fallen.objective = 0;
+    fallen.objectivesDone = 0;
+    fallen.empowered = 1;
+    fallen.met = false;
     fallen.stunTimer = 0;
     return fallen;
   }
@@ -484,6 +577,10 @@ export class EnemySystem implements TargetProvider {
     villain.stamina = 1;
     villain.turned = false;
     villain.regenerating = false;
+    villain.objective = 0;
+    villain.objectivesDone = 0;
+    villain.empowered = 1;
+    villain.met = false;
     villain.stunTimer = 0;
     villain.damageScale = 1;
     villain.chargeTimer = 0;
@@ -578,6 +675,7 @@ export class EnemySystem implements TargetProvider {
       v.sinceHit += dt;
       v.stunTimer = Math.max(0, v.stunTimer - dt);
       this.updateRegen(dt, v);
+      this.updateObjective(dt, v, player.pos);
       v.poiseCooldown = Math.max(0, v.poiseCooldown - dt);
       if (v.poiseTimer > 0) {
         v.poiseTimer -= dt;
@@ -804,7 +902,7 @@ export class EnemySystem implements TargetProvider {
           if (_v1.lengthSq() < 1e-4) _v1.set(0, 1, 0);
           _v1.normalize().multiplyScalar(cfg.knockback);
           _v1.y = Math.abs(_v1.y) + 14;
-          if (this.hurtPlayer(player, cfg.damage, _v1)) this.onAttackLanded?.(v.kind);
+          if (this.hurtPlayer(v, player, cfg.damage, _v1)) this.onAttackLanded?.(v.kind);
         }
       }
       return;
@@ -869,7 +967,7 @@ export class EnemySystem implements TargetProvider {
           if (_v3.lengthSq() < 1e-4) _v3.set(1, 0, 0);
           _v3.normalize().multiplyScalar(cfg.lunge * 2.4);
           _v3.y = 7;
-          if (this.hurtPlayer(player, damage, _v3)) {
+          if (this.hurtPlayer(v, player, damage, _v3)) {
             this.spawnImpact(player.pos, v.color, 3);
             this.onAttackLanded?.(v.kind);
           }
@@ -923,7 +1021,7 @@ export class EnemySystem implements TargetProvider {
 
       if (gap < 3.2) {
         _v2.set(_v1.x * 22, 10, _v1.z * 22);
-        if (this.hurtPlayer(player, cfg.diveDamage, _v2)) this.spawnImpact(player.pos, v.color, 3);
+        if (this.hurtPlayer(v, player, cfg.diveDamage, _v2)) this.spawnImpact(player.pos, v.color, 3);
         v.phase = 'ORBIT';
         v.cooldown = cfg.diveCooldown;
       } else if (v.timer <= 0) {
@@ -1071,7 +1169,7 @@ export class EnemySystem implements TargetProvider {
         if (_v1.lengthSq() < 1e-4) _v1.set(0, 1, 0);
         _v1.normalize().multiplyScalar(isBomb ? 26 : 12);
         _v1.y = Math.abs(_v1.y) + (isBomb ? 12 : 5);
-        this.hurtPlayer(player, damage, _v1);
+        this.hurtPlayer(null, player, damage, _v1);
       }
     }
   }
@@ -1099,7 +1197,7 @@ export class EnemySystem implements TargetProvider {
       this.onRangedAttack?.(v.kind);
       v.rangedHold = RANGED_HOLD;
       _v3.copy(v.pos).sub(player.pos).setY(0).normalize().multiplyScalar(24);
-      if (this.hurtPlayer(player, cfg.whipDamage, _v3)) this.spawnImpact(player.pos, v.color, 3);
+      if (this.hurtPlayer(v, player, cfg.whipDamage, _v3)) this.spawnImpact(player.pos, v.color, 3);
       return;
     }
 
@@ -1157,7 +1255,7 @@ export class EnemySystem implements TargetProvider {
 
         if (dist < cfg.contactRadius) {
           _v3.copy(v.vel).normalize().multiplyScalar(cfg.knockback).addScaledVector(UP, 8);
-          if (this.hurtPlayer(player, cfg.damage, _v3)) {
+          if (this.hurtPlayer(v, player, cfg.damage, _v3)) {
             this.spawnImpact(player.pos, 0x9440bc, 3.2);
           }
           v.phase = 'RECOVER';
@@ -1357,7 +1455,7 @@ export class EnemySystem implements TargetProvider {
         );
         this.fireBolt(v.pos, _v3);
       }
-      if (this.hurtPlayer(player, cfg.chainDamage)) this.spawnImpact(player.pos, 0xd8ff3c, 4.5);
+      if (this.hurtPlayer(v, player, cfg.chainDamage)) this.spawnImpact(player.pos, 0xd8ff3c, 4.5);
       return;
     }
 
@@ -1367,7 +1465,7 @@ export class EnemySystem implements TargetProvider {
       this.onRangedAttack?.(v.kind);
       v.rangedHold = RANGED_HOLD;
       this.fireBolt(v.pos, player.pos);
-      if (this.hurtPlayer(player, cfg.boltDamage)) {
+      if (this.hurtPlayer(v, player, cfg.boltDamage)) {
         this.spawnImpact(player.pos, 0xd8ff3c, 2.6);
       }
     }
@@ -1499,7 +1597,7 @@ export class EnemySystem implements TargetProvider {
     const rise = player.pos.y - v.chargePoint.y;
     if (flat < cfg.pillarRadius && rise > -2 && rise < 14) {
       _v1.set(0, 26, 0);
-      if (this.hurtPlayer(player, cfg.pillarDamage, _v1)) {
+      if (this.hurtPlayer(v, player, cfg.pillarDamage, _v1)) {
         this.onAttackLanded?.(v.kind);
       }
     }
@@ -1551,7 +1649,7 @@ export class EnemySystem implements TargetProvider {
 
       if (dist < 3.6) {
         _v1.copy(v.vel).normalize().multiplyScalar(24).addScaledVector(UP, 9);
-        if (this.hurtPlayer(player, cfg.dashDamage, _v1)) {
+        if (this.hurtPlayer(v, player, cfg.dashDamage, _v1)) {
           this.spawnImpact(player.pos, v.color, 3.4);
           this.onAttackLanded?.(v.kind);
         }
@@ -1579,7 +1677,7 @@ export class EnemySystem implements TargetProvider {
       _v1.copy(player.pos).sub(v.pos);
       if (_v1.lengthSq() < 1e-4) _v1.set(0, 1, 0);
       _v1.normalize().multiplyScalar(30).addScaledVector(UP, 12);
-      if (this.hurtPlayer(player, cfg.screechDamage, _v1)) this.onAttackLanded?.(v.kind);
+      if (this.hurtPlayer(v, player, cfg.screechDamage, _v1)) this.onAttackLanded?.(v.kind);
       return;
     }
 
@@ -1593,7 +1691,7 @@ export class EnemySystem implements TargetProvider {
       if (_v1.lengthSq() < 1e-4) _v1.set(1, 0, 0);
       _v1.normalize().multiplyScalar(cfg.pullStrength);
       _v1.y = Math.abs(_v1.y) + 6;
-      if (this.hurtPlayer(player, cfg.pullDamage, _v1)) this.spawnImpact(player.pos, v.color, 2.6);
+      if (this.hurtPlayer(v, player, cfg.pullDamage, _v1)) this.spawnImpact(player.pos, v.color, 2.6);
       return;
     }
 
@@ -2162,6 +2260,10 @@ export class EnemySystem implements TargetProvider {
       dormant: true,
       turned: false,
       regenerating: false,
+      objective: 0,
+      objectivesDone: 0,
+      empowered: 1,
+      met: false,
       stunTimer: 0,
       damageScale: 1,
       sinceHit: 0,

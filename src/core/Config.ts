@@ -325,6 +325,41 @@ export const CONFIG = {
 
   enemies: {
     /**
+     * What a villain is actually doing up there.
+     *
+     * They used to be doing nothing: a boss stood on a roof for as long as it
+     * took the player to arrive, with no reason to have been there and no
+     * cost to being left alone. Ignoring a supervillain was free.
+     *
+     * Each of them now works at something while unopposed, and finishing it
+     * pays them: health back and heavier hits, because they got what they came
+     * for. It repeats rather than ending the fight — in story mode the chapter
+     * needs them beaten, so a villain who completes an objective and leaves
+     * would strand the campaign.
+     */
+    objectives: {
+      /** Seconds of being left alone to finish one. */
+      seconds: 55,
+      /** Metres: closer than this and the player is considered to be stopping it. */
+      contestRadius: 70,
+      /** Fraction of maximum health they take back on finishing. */
+      reward: 0.25,
+      /** Damage multiplier gained per objective completed, compounding. */
+      empower: 1.15,
+      /**
+       * How many a single villain may finish in one fight.
+       *
+       * Compounding with no ceiling is a spiral, and free roam is where it
+       * shows: the whole roster is live at once, spread across the city, and
+       * without a cap every one of them the player is not currently standing
+       * next to gets stronger every fifty-five seconds forever. Three tops the
+       * multiplier out at about 1.5x, which is a fight that got harder rather
+       * than a fight that became impossible while you were somewhere else.
+       */
+      maxPerFight: 3,
+    },
+
+    /**
      * Bosses recovering while nobody is hitting them.
      *
      * The player regenerates after seven quiet seconds, which meant the winning

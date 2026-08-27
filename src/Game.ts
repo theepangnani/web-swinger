@@ -10,7 +10,13 @@ import { PlayerState } from './player/PlayerState';
 import { WebSystem } from './player/WebSystem';
 import { Gadgets, GADGETS } from './player/Gadgets';
 import { GltfCharacter } from './player/GltfCharacter';
-import { EnemySystem, VILLAIN_KINDS, type Villain, type VillainKind } from './enemies/EnemySystem';
+import {
+  EnemySystem,
+  OBJECTIVE,
+  VILLAIN_KINDS,
+  type Villain,
+  type VillainKind,
+} from './enemies/EnemySystem';
 import { Ally } from './game/Ally';
 import { DayNight } from './world/DayNight';
 import { HEROES, nextHero, type HeroId } from './game/Heroes';
@@ -44,6 +50,7 @@ import {
   DEFEAT,
   DISPATCH,
   FALL,
+  OBJECTIVE_DONE,
   PRESSURE,
   PROLOGUE,
   RESCUE,
@@ -441,6 +448,20 @@ export class Game {
       if (!villain.regenerating) return;
       this.hud.showSubtitle('RECOVERING', `${villain.name} is healing — get back in.`, '#52fa7c');
       this.sfx.play('alert', 0.4);
+    };
+    // Left alone long enough, they finish what they came for and are paid for
+    // it. Announced, because the alternative is a boss silently getting health
+    // back and hitting harder, which reads as the game cheating.
+    this.enemies.onObjectiveDone = (villain): void => {
+      this.story.play(OBJECTIVE_DONE[villain.kind]);
+      this.hud.showSubtitle(
+        'TOO LATE',
+        `${villain.name} finished. Health back, and hitting harder.`,
+        '#e63946',
+      );
+      this.sfx.play('alert', 0.8);
+      this.chase.addShake(0.5);
+      this.markDirty();
     };
     this.enemies.onInterrupted = (villain): void => {
       this.hud.showSubtitle('STAGGERED', `${villain.name} is open.`, '#ffb703');
@@ -2387,6 +2408,8 @@ export class Game {
         distance: v.pos.distanceTo(player.pos),
         regenerating: v.regenerating,
         stunned: v.stunTimer > 0,
+        objective: OBJECTIVE[v.kind],
+        objectiveProgress: v.objective,
       });
     }
     this.villainReadouts.sort((a, b) => a.distance - b.distance);

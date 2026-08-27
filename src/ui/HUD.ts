@@ -15,6 +15,9 @@ export interface VillainReadout {
   regenerating: boolean;
   /** Staggered, having been interrupted mid-recovery. */
   stunned: boolean;
+  /** What they are working at, and how far through it, 0..1. */
+  objective: string;
+  objectiveProgress: number;
 }
 
 export interface AllyReadout {
@@ -301,11 +304,17 @@ export class HUD {
       }
       // Replaces the distance rather than sitting beside it: while a boss is
       // healing or reeling, how far away they are is not the useful number.
+      // Priority order is what the player can do something about soonest: an
+      // opening now, then health being undone, then a thing being taken that
+      // only matters if they are too far away to stop it — which is exactly
+      // when the distance stops being the useful number.
       const label = readout.stunned
         ? 'STAGGERED'
         : readout.regenerating
           ? 'RECOVERING — go back in'
-          : `${Math.round(readout.distance)}m`;
+          : readout.objectiveProgress > 0.02
+            ? `${readout.objective} ${Math.round(readout.objectiveProgress * 100)}%  ·  ${Math.round(readout.distance)}m`
+            : `${Math.round(readout.distance)}m`;
       if (dist && dist.textContent !== label) dist.textContent = label;
     }
   }

@@ -471,7 +471,39 @@ console.log('[12] the fight, and the city around it');
   if (!/this\.backpacks\.dispose\(\)/.test(gameSrc)) fail('backpacks are never disposed');
   if (!/backpacks: this\.backpacks\.serialise\(\)/.test(gameSrc)) fail('found backpacks are not saved');
 
-  console.log('  ok — one shared recovery rule, staggers pose, escorts swept, victims wait, packs saved');
+  // --- villain objectives ---
+  // They used to stand on a roof waiting to be punched, with no reason to have
+  // been there and no cost to being left alone: ignoring a supervillain was
+  // free.
+  if (!/updateObjective\(/.test(enemySrc)) fail('villains have nothing to do again');
+  if (!/onObjectiveDone/.test(gameSrc)) fail('finishing an objective is silent');
+  // Every villain needs a stated objective or the readout shows undefined.
+  const objTable = enemySrc.match(/export const OBJECTIVE: Record<VillainKind, string> = \{([\s\S]*?)\n\};/);
+  if (!objTable) fail('the objective table is gone');
+  else {
+    for (const k of allKinds) {
+      if (!new RegExp(`['"]?${k}['"]?:`).test(objTable[1])) fail(`${k} has no objective`);
+    }
+  }
+  const objFn = enemySrc.match(/private updateObjective\([\s\S]*?\n {2}\}/);
+  if (objFn) {
+    // Free roam brings the whole roster out at once. Without the cap, every
+    // villain the player is not standing next to compounds forever; without
+    // `met`, five strangers rob the city from the first second and announce it.
+    if (!/maxPerFight/.test(objFn[0])) fail('objective empowerment has no ceiling — free roam will spiral');
+    // The guard specifically, not any mention of the flag: the same function
+    // also *sets* v.met, so a loose match passes with the guard deleted.
+    if (!/if \(!v\.met\) return;/.test(objFn[0])) {
+      fail('villains the player has never met still work at objectives');
+    }
+    if (!/webbed/.test(objFn[0])) fail('a cocooned villain still makes progress');
+  }
+  // The per-villain multiplier has to actually reach the damage.
+  if (!/v \? v\.empowered : 1/.test(enemySrc)) fail('empowerment never reaches the player');
+  if (!/objectiveProgress/.test(hudSrc)) fail('the objective is invisible to the player');
+
+  console.log('  ok — one shared recovery rule, staggers pose, escorts swept, victims wait,');
+  console.log('       packs saved, and every villain is working at something with a ceiling');
 }
 
 console.log('');

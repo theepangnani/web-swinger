@@ -870,6 +870,39 @@ export const RESCUE: Readonly<Record<'PETER' | 'MILES', Script>> = {
   ],
 };
 
+/**
+ * A villain finishing what they came to do, because nobody stopped them.
+ *
+ * Said by the villain, not the radio, and written as satisfaction rather than
+ * as a penalty notice. The player already knows they lost something; what they
+ * need is a reason to have believed the boss was doing anything at all, and a
+ * gloat is a better one than a number going down.
+ */
+export const OBJECTIVE_DONE: Partial<Record<VillainKind, Script>> = {
+  'BLACK CAT': [
+    ['BLACK CAT', 'And that is the vault. You were busy, I did not want to interrupt.'],
+    ['YURI', 'She is clear. We had units four minutes out.'],
+  ],
+  ELECTRO: [
+    ['ELECTRO', 'Whole substation, straight through me. I feel wonderful.'],
+    ['YURI', 'Six blocks just went dark, Spider-Man.'],
+  ],
+  SANDMAN: [
+    ['SANDMAN', 'That is the foundation gone. I did tell you I was not here for you.'],
+  ],
+  VENOM: [
+    ['VENOM', 'We fed. You were not here.'],
+  ],
+  'GREEN GOBLIN': [
+    ['GREEN GOBLIN', 'Marvellous! Nobody came at all. Do let us do another.'],
+    ['YURI', 'That was a residential block.'],
+  ],
+  'SYMBIOTE PETER': [
+    ['SYMBIOTE PETER', 'They will heal. Mostly.'],
+    ['MILES', 'Peter. Look at what you just did.'],
+  ],
+};
+
 /** Nobody beat you — the city did. */
 export const FALL: Script = [
   ['YURI', 'We lost you off the radio for a moment there. Say something.'],
@@ -1210,7 +1243,7 @@ function buildBanks(): Record<string, string[]> {
       for (const script of Object.values(table ?? {})) if (script) addScript(script);
     }
   }
-  for (const table of [TURN, PRESSURE, DEFEAT]) {
+  for (const table of [TURN, PRESSURE, DEFEAT, OBJECTIVE_DONE]) {
     for (const script of Object.values(table)) if (script) addScript(script);
   }
   addScript(FALL);

@@ -210,6 +210,39 @@ throttled by a global cooldown plus a per-event cooldown, and never repeat the
 previous line. Every line is mirrored to an on-screen subtitle, so the whole
 system degrades cleanly when audio is unavailable or muted (`M`).
 
+### What the villains are doing
+
+They used to stand on a roof waiting to be punched. There was no reason for
+them to have been there and no cost to leaving them alone, so ignoring a
+supervillain was free.
+
+Each of them now works at something while unopposed:
+
+| | |
+| --- | --- |
+| Black Cat | Emptying the vault |
+| Electro | Draining the substation |
+| Sandman | Tearing up the block |
+| Venom | Hunting the street |
+| Green Goblin | Bombing the district |
+| Symbiote Peter | Working through anyone nearby |
+
+Progress is contested by **presence**, not damage — standing in front of
+Sandman stops him whether or not you are landing hits, which is both truer and
+kinder than demanding a damage stream from someone being knocked off a roof.
+Left alone for fifty-five seconds they finish, and finishing pays them: a
+quarter of their health back and 15% heavier hits for the rest of the fight.
+
+It repeats rather than ending anything. A story chapter is not complete until
+the villain is beaten, so one who finished an objective and left would strand
+the campaign.
+
+Two ceilings, both learned the hard way. It only runs for a villain the player
+has actually met, and no more than three times each — free roam has the whole
+roster live at once, and without either, five villains you have never laid eyes
+on rob, drain and bomb their way through the city from the first second,
+compounding, announcing each one to somebody with no idea who is talking.
+
 ### Losing
 
 You used to be unable to. Dying restored full health, granted triple
