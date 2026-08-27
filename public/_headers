@@ -1,0 +1,43 @@
+# Response headers for the built site.
+#
+# Read automatically by Cloudflare Pages and Netlify. Vite copies everything in
+# public/ into dist/, so deploying dist/ carries this with it. On nginx or
+# Apache the same list has to be written into the server config by hand — see
+# the Security section of the README.
+#
+# These are the half of the protection that has to come from the server. The
+# other half — not shipping the source, and refusing to run inside somebody
+# else's page — is in the build config and in main.ts, because a static site
+# cannot rely on being deployed anywhere that reads this file.
+
+/*
+  # Nobody else's page gets to frame this and sell it as theirs. This is the
+  # one header that actually prevents a form of theft: without it, any site can
+  # iframe the game, wrap it in their own ads, and never host a byte of it.
+  X-Frame-Options: DENY
+
+  # The modern equivalent, plus a lockdown of everything the page may load.
+  # The game is entirely self-contained — no CDN, no analytics, no fonts, no
+  # third-party anything — so this can be as tight as it looks. 'unsafe-inline'
+  # for styles only, because index.html carries one <style> block.
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self'; connect-src 'self'; font-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests
+
+  # Do not leak where players came from.
+  Referrer-Policy: no-referrer
+
+  # No sniffing a .json or .mp3 into something executable.
+  X-Content-Type-Options: nosniff
+
+  # The game asks for none of these. Saying so stops an injected script asking
+  # on its behalf.
+  Permissions-Policy: geolocation=(), microphone=(), camera=(), payment=(), usb=(), interest-cohort=()
+
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Resource-Policy: same-origin
+
+# Source maps must never reach production, and the build no longer makes them.
+# This is the belt to that braces: if one is ever produced by accident, it is
+# not served. A map contains every original TypeScript file, comments and all.
+/*.map
+  X-Robots-Tag: noindex
+  Content-Security-Policy: default-src 'none'

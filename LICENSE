@@ -1,0 +1,44 @@
+Copyright (c) 2026 Theepan Nani. All rights reserved.
+
+This software and its accompanying assets — including the source code, the
+written dialogue, the generated voice recordings and the game design — are
+proprietary and confidential.
+
+No permission is granted to copy, modify, merge, publish, distribute,
+sublicense, sell, host, embed or create derivative works from any part of this
+project, in source or compiled form, without the prior written permission of
+the copyright holder.
+
+Viewing this repository, or the compiled output of it, does not grant any
+licence to its contents.
+
+--------------------------------------------------------------------------
+
+A note on what a licence can and cannot do here.
+
+This game runs in a browser. Everything needed to play it is delivered to the
+player's machine, and no technical measure changes that — a determined person
+can always take a copy of what their own browser has already downloaded. What
+this file does is remove any ambiguity about whether they are permitted to.
+That is a legal protection rather than a technical one, and it is the only kind
+that genuinely applies to a client-side game.
+
+The technical measures that are worth having are in place and are aimed at the
+things that are actually preventable: the build no longer ships source maps, so
+the original TypeScript is not handed over; the site refuses to run inside
+another page, so it cannot be framed and passed off as somebody else's; and the
+response headers in public/_headers lock down what the page may load. See the
+Security section of README.md.
+
+--------------------------------------------------------------------------
+
+Third-party components are used under their own licences and are not covered by
+the above:
+
+  three.js            MIT
+  vite, esbuild,
+  typescript          MIT
+
+Map geometry under public/city/, where present, is derived from OpenStreetMap
+data, © OpenStreetMap contributors, and is used under the Open Database Licence
+(ODbL). The attribution this requires is displayed in-game.

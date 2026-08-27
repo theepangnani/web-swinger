@@ -987,6 +987,105 @@ export const BACKPACK_MEMORIES: readonly Script[] = [
   ],
 ];
 
+// ---------------------------------------------------------------- prologue
+
+/**
+ * Before Book One.
+ *
+ * The campaign opened on Watanabe already talking to you on a police channel
+ * and Black Cat already being somebody you have history with, and never said
+ * how either of those things came to be true. That is a reasonable way to
+ * start a sequel and this is not one — the answers were nowhere in the game,
+ * only in my head, which is the least useful place for them.
+ *
+ * Four scenes, played once when a new story starts. They are the only part of
+ * this file written as flashback, so they are the only part where the hero is
+ * always **Peter**: Miles was not there for any of it. The player may still be
+ * playing Miles when they see it, which is why it is framed as something being
+ * told rather than something happening — the last scene hands over explicitly.
+ *
+ * Skippable, and repeatable from the pause screen. A cold open you cannot get
+ * out of is a cold open people resent by the third time.
+ */
+export interface PrologueScene {
+  /** Card shown before the scene, as a chapter card is. */
+  readonly label: string;
+  readonly title: string;
+  readonly script: Script;
+}
+
+export const PROLOGUE: readonly PrologueScene[] = [
+  {
+    label: 'PROLOGUE · I',
+    title: 'Eight Years In',
+    script: [
+      ['PETER', 'Eight years of this. You would think the city would run out of things to fall off.'],
+      ['MJ', 'You would think you would run out of ways to land badly.'],
+      ['PETER', 'I have a system.'],
+      ['MJ', 'You have a habit. There is a difference, and one of them has a bedtime.'],
+    ],
+  },
+  {
+    label: 'PROLOGUE · II',
+    title: 'The Captain Who Called First',
+    script: [
+      [
+        'MJ',
+        'For years nobody at the precinct would say your name out loud. Then a captain did, on an open channel.',
+      ],
+      ['PETER', 'Yuri Watanabe. She did not ask permission and she did not ask me either.'],
+      [
+        'YURI',
+        'I had a hostage on a fortieth floor and a ladder that reaches ten. You were already on the roof.',
+      ],
+      ['PETER', 'You could have been suspended for that call.'],
+      ['YURI', 'I was. For eleven days. Then they gave me the channel back, because it worked.'],
+      [
+        'YURI',
+        'I do not think you are the answer, Spider-Man. I think you are what I have got at four in the morning.',
+      ],
+    ],
+  },
+  {
+    label: 'PROLOGUE · III',
+    title: 'How He Knew',
+    script: [
+      ['MJ', 'And Felicia.'],
+      ['PETER', 'Felicia Hardy. We were friends first. That is the part people get wrong.'],
+      [
+        'PETER',
+        'She used to leave a window open for me on bad nights. Never asked what the mask was for.',
+      ],
+      ['MJ', 'So how did you work it out?'],
+      [
+        'PETER',
+        'The Cat had been running the skyline for a year and I never got closer than a rooftop. Then one night I did.',
+      ],
+      [
+        'PETER',
+        'She was clearing a gap she had no business clearing, and she took it left-footed. Nobody does that. It is slower.',
+      ],
+      ['PETER', 'Felicia broke that ankle when she was nineteen. She has favoured it ever since.'],
+      ['MJ', 'You recognised her from a limp.'],
+      ['PETER', 'I recognised her from a habit. I did not say anything for six weeks.'],
+      ['MJ', 'Why not?'],
+      ['PETER', 'Because the moment I did, one of them stopped being my friend. I was not in a hurry to find out which.'],
+    ],
+  },
+  {
+    label: 'PROLOGUE · IV',
+    title: 'Tonight',
+    script: [
+      ['BLACK CAT', 'You took six weeks, by the way. I counted.'],
+      ['PETER', 'You knew I knew.'],
+      ['BLACK CAT', 'I left the window open, Peter. I am not subtle, I am just fast.'],
+      ['MJ', 'Nine burglaries this week and nothing forced. She is working again.'],
+      ['PETER', 'Then that is where we start.'],
+      ['YURI', 'Spider-Man, Watanabe. Radio is already busy and the sun is not even down.'],
+    ],
+  },
+];
+
 // ------------------------------------------------------------- side threads
 
 /**
@@ -1120,6 +1219,7 @@ function buildBanks(): Record<string, string[]> {
   for (const script of SIEGE) addScript(script);
   for (const thread of THREADS) for (const script of thread.beats) addScript(script);
   for (const script of BACKPACK_MEMORIES) addScript(script);
+  for (const scene of PROLOGUE) addScript(scene.script);
   for (const entry of AMBIENT) addScript(entry.script);
   for (const scripts of Object.values(DISPATCH)) for (const script of scripts) addScript(script);
   for (const script of CRIME_LOST) addScript(script);
@@ -1192,7 +1292,7 @@ export class StoryDirector {
    * team-up. At four, the boss entrance and sometimes the opening exchange
    * were being thrown away exactly there.
    */
-  private static readonly MAX_QUEUED = 12;
+  private static readonly MAX_QUEUED = 16;
 
   private hero: HeroId = 'PETER';
   private readonly pending: Entry[][] = [];
@@ -1210,6 +1310,22 @@ export class StoryDirector {
   /** Who `HERO` resolves to. `PARTNER` is always the other one. */
   setHero(hero: HeroId): void {
     this.hero = hero;
+  }
+
+  /**
+   * Queues a scene spoken by a fixed cast, whoever is playing.
+   *
+   * The prologue is a flashback: Miles was not there for any of it, so `HERO`
+   * inside it has to be Peter even on a save that is being played as Miles.
+   * Restores the real hero afterwards rather than leaving the director pointed
+   * at the wrong person for the rest of the session.
+   */
+  playAs(hero: HeroId, script: Script): boolean {
+    const previous = this.hero;
+    this.hero = hero;
+    const queued = this.play(script);
+    this.hero = previous;
+    return queued;
   }
 
   /** Queues a scene. Returns false if there was nothing to play, or it was dropped. */
@@ -1250,8 +1366,26 @@ export class StoryDirector {
     if (seconds > this.timer) this.timer = seconds;
   }
 
+  /**
+   * True while what is queued may be cut short by the player.
+   *
+   * Set for the prologue and nothing else. Ordinary dialogue is short, tied to
+   * something the player just did, and skippable by simply carrying on; a cold
+   * open is none of those, and a cold open you cannot get out of is one people
+   * resent by the third new game.
+   */
+  skippable = false;
+
+  /** Drops everything queued. Returns whether there was anything to drop. */
+  skip(): boolean {
+    if (!this.busy) return false;
+    this.clear();
+    return true;
+  }
+
   /** Abandons everything queued — used when a save loads or a mode restarts. */
   clear(): void {
+    this.skippable = false;
     this.pending.length = 0;
     this.current = null;
     this.cursor = 0;
@@ -1276,6 +1410,10 @@ export class StoryDirector {
       if (!next) {
         if (!this.announcedIdle) {
           this.announcedIdle = true;
+          // The skip permission belongs to the thing that asked for it. Left
+          // set, the next Enter press would cut short a chapter's dialogue
+          // that nobody offered to skip.
+          this.skippable = false;
           this.onIdle?.();
         }
         return;

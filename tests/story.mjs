@@ -28,6 +28,7 @@ const {
   DEFEAT,
   FALL,
   RESCUE,
+  PROLOGUE,
   BACKPACK_MEMORIES,
   BOOK_ENDINGS,
   SIEGE,
@@ -42,7 +43,7 @@ const {
     ['{ CRIME_KINDS }', 'src/enemies/ThugSystem'],
     ['{ VOICE_LINES }', 'src/audio/Voice'],
     [
-      '{ CHAPTER_BEATS, AMBIENT, DISPATCH, CRIME_LOST, TURN, PRESSURE, DEFEAT, FALL, RESCUE, BACKPACK_MEMORIES, BOOK_ENDINGS, SIEGE, THREADS, STORY_LINES, StoryDirector, speakerColor, speakerName }',
+      '{ CHAPTER_BEATS, AMBIENT, DISPATCH, CRIME_LOST, TURN, PRESSURE, DEFEAT, FALL, RESCUE, PROLOGUE, BACKPACK_MEMORIES, BOOK_ENDINGS, SIEGE, THREADS, STORY_LINES, StoryDirector, speakerColor, speakerName }',
       'src/game/Story',
     ],
   ],
@@ -269,6 +270,7 @@ console.log('[7] recorded-clip indices');
   checkScript(FALL, 'FALL');
   for (const [who, script] of Object.entries(RESCUE)) checkScript(script, `RESCUE.${who}`);
   BACKPACK_MEMORIES.forEach((script, i) => checkScript(script, `backpack.${i}`));
+  PROLOGUE.forEach((scene, i) => checkScript(scene.script, `prologue.${i}`));
   for (const entry of AMBIENT) checkScript(entry.script, 'ambient');
   for (const [kind, scripts] of Object.entries(DISPATCH)) {
     scripts.forEach((script, i) => checkScript(script, `dispatch.${kind}.${i}`));
@@ -526,6 +528,19 @@ console.log('[12] Miles-specific dialogue is gated');
     }
   }
 
+  // The prologue is a flashback to nights Miles was not present for, and is
+  // delivered as Peter whoever the player picked. A MILES line in it would be
+  // a line from somebody who is not in the scene — and unlike everywhere else
+  // in this file, no book gating can make it true.
+  PROLOGUE.forEach((scene, i) => {
+    for (const [who] of scene.script) {
+      if (who === 'MILES' || who === 'RIO' || who === 'GANKE' || who === 'PARTNER') {
+        fail(`prologue scene ${i} ("${scene.title}") has a line from ${who}, who was not there`);
+        bad++;
+      }
+    }
+  });
+
   // Backpacks are found by whoever is wearing the mask, in any book.
   for (const script of BACKPACK_MEMORIES) {
     if (mentionsMiles(script)) {
@@ -535,6 +550,60 @@ console.log('[12] Miles-specific dialogue is gated');
   }
 
   if (!bad) ok('nothing addresses Miles on a night the player could be Peter');
+}
+
+// --- 12b. the prologue ----------------------------------------------------
+console.log('[12b] the prologue');
+{
+  let bad = 0;
+  if (PROLOGUE.length < 2) fail('the prologue is not an opening, it is a line');
+  const seen = new Set();
+  for (const scene of PROLOGUE) {
+    if (!scene.label || !scene.title) {
+      fail('a prologue scene has no card');
+      bad++;
+    }
+    if (seen.has(scene.title)) {
+      fail(`two prologue scenes are called "${scene.title}"`);
+      bad++;
+    }
+    seen.add(scene.title);
+    if (!scene.script.length) {
+      fail(`prologue scene "${scene.title}" is empty`);
+      bad++;
+    }
+    for (const [who] of scene.script) {
+      if (!KNOWN_SPEAKERS.has(who)) {
+        fail(`prologue "${scene.title}": unknown speaker ${who}`);
+        bad++;
+      }
+    }
+  }
+  // Each scene is a card plus a script, and they are all queued at once ahead
+  // of the first chapter card — so the queue has to be able to hold the lot.
+  const entries = PROLOGUE.length * 2 + 3;
+  const d = new StoryDirector();
+  let accepted = 0;
+  for (const scene of PROLOGUE) {
+    if (d.playCard(scene.label, scene.title)) accepted++;
+    if (d.playAs('PETER', scene.script)) accepted++;
+  }
+  if (accepted !== PROLOGUE.length * 2) {
+    fail(`the queue dropped ${PROLOGUE.length * 2 - accepted} of the prologue`);
+    bad++;
+  }
+
+  // playAs must not leave the director pointed at the wrong hero afterwards.
+  const e = new StoryDirector();
+  e.setHero('MILES');
+  e.playAs('PETER', [['HERO', 'Flashback.']]);
+  const said = [];
+  e.onLine = (line) => said.push(line.speaker);
+  e.play([['HERO', 'Now.']]);
+  for (let i = 0; i < 60 && e.busy; i++) e.update(0.5);
+  if (said[0] !== 'PETER') fail(`the flashback was spoken by ${said[0]}, not Peter`);
+  else if (said[1] !== 'MILES') fail(`after the flashback the hero is ${said[1]}, not Miles again`);
+  else if (!bad) ok(`${PROLOGUE.length} scenes, ${entries} queue entries, hero restored after`);
 }
 
 // --- 13. the director -----------------------------------------------------

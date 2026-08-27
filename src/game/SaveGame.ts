@@ -56,6 +56,29 @@ export interface StoryState {
 }
 
 const STORAGE_KEY = 'web-swinger.save.v1';
+
+/**
+ * Signs a save so casual editing is noticed.
+ *
+ * Worth being honest about what this is: the hash function ships in the same
+ * bundle as the game, so anybody willing to read it can re-sign whatever they
+ * like. It is not a lock. What it stops is the thing people actually do —
+ * opening devtools, changing `"level": 3` to `"level": 30`, and reloading —
+ * which is a two-second edit against no resistance at all.
+ *
+ * FNV-1a: four lines, no dependency, and entirely adequate for detecting an
+ * edit rather than resisting an attacker.
+ */
+function sign(payload: string): string {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < payload.length; i++) {
+    hash ^= payload.charCodeAt(i);
+    // The FNV prime, by shift-and-add: a plain multiply overflows 32 bits.
+    hash += (hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24);
+    hash >>>= 0;
+  }
+  return hash.toString(16);
+}
 // v2: added timeOfDay, and the campaign was restructured into seven books, so
 // a v1 chapter index no longer means the same thing. Older saves are dropped.
 const CURRENT_VERSION = 2;
@@ -66,8 +89,16 @@ export class SaveGame {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return null;
-      const parsed = JSON.parse(raw) as Partial<SaveData>;
+      const parsed = JSON.parse(raw) as Partial<SaveData> & { sig?: string };
       if (parsed.version !== CURRENT_VERSION) return null;
+
+      // Checked before anything is read out of it. A save without a signature
+      // is one written before signing existed and is let through — refusing it
+      // would delete the progress of every existing player to punish nobody.
+      if (typeof parsed.sig === 'string') {
+        const { sig, ...rest } = parsed;
+        if (sign(JSON.stringify(rest)) !== sig) return null;
+      }
       if (!parsed.progression || !parsed.mode) return null;
 
       return {
@@ -101,7 +132,9 @@ export class SaveGame {
   static save(data: Omit<SaveData, 'version' | 'savedAt'>, now: number): boolean {
     try {
       const payload: SaveData = { ...data, version: CURRENT_VERSION, savedAt: now };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+      // Signed over exactly what is stored, minus the signature itself.
+      const signed = { ...payload, sig: sign(JSON.stringify(payload)) };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(signed));
       return true;
     } catch {
       // Private browsing or quota exceeded: play on, just without persistence.

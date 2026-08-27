@@ -2,6 +2,27 @@ import { Game } from './Game';
 import { loadOsmCity } from './world/OsmData';
 
 /**
+ * Refuses to run inside another site's frame.
+ *
+ * The `frame-ancestors` and `X-Frame-Options` headers in `public/_headers` are
+ * the real defence, but they only exist if the site is deployed somewhere that
+ * reads that file. This is the part that travels with the build: without it,
+ * anyone can iframe the game into their own page, wrap it in their own
+ * advertising and never host a byte of it — the cheapest way there is to steal
+ * something that runs in a browser.
+ *
+ * Reading `window.top` across origins throws, and that throw is itself the
+ * answer: only a cross-origin embed can raise it.
+ */
+function framed(): boolean {
+  try {
+    return window.top !== window.self;
+  } catch {
+    return true;
+  }
+}
+
+/**
  * Boot entry point. Everything that can fail before the Game exists — missing
  * DOM nodes, no WebGL — is reported into the overlay rather than left as a
  * blank black screen.
@@ -40,6 +61,14 @@ function hasWebGL(): boolean {
 }
 
 async function boot(): Promise<void> {
+  if (framed()) {
+    reportFatal(
+      'This game does not run inside another site.<br>' +
+        'Open it directly and it will start normally.',
+    );
+    return;
+  }
+
   const container = document.getElementById('canvas-container');
   if (!container) {
     reportFatal('Missing <code>#canvas-container</code> in index.html.');

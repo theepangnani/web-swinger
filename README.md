@@ -265,11 +265,54 @@ because they record what the *player* has learned, not what the character has
 done — starting a new game should not re-explain the controls to somebody who
 has been playing for an hour. Erasing the save brings them back.
 
+### Security, and what it can actually do
+
+This is a browser game. Everything needed to play it is delivered to the
+player's machine, so **no technical measure stops a determined person taking a
+copy** — anything claiming otherwise is selling something. What is worth doing
+is the set of things that are genuinely preventable, and those are done:
+
+- **The build no longer ships source maps.** It used to. `dist/` carried a
+  3.4 MB `.map` beside the bundle containing all 48 source files with
+  `sourcesContent` — the complete, commented TypeScript. Anyone who could load
+  the page could download the entire project. Minified output still needs a
+  determined reader; a source map needs nobody.
+- **The page refuses to run in someone else's frame** (`main.ts`). Without it,
+  any site can iframe the game, wrap it in their own advertising, and never
+  host a byte of it — the cheapest way to steal something that runs in a
+  browser.
+- **`public/_headers`** carries a strict CSP (`frame-ancestors 'none'`,
+  `default-src 'self'`), `X-Frame-Options`, `Referrer-Policy: no-referrer` and
+  a `Permissions-Policy` that turns off everything the game never asks for.
+  Cloudflare Pages and Netlify read it automatically; nginx and Apache need the
+  same list written into their config.
+- **Saves are signed** so casual editing is rejected. The hash ships in the
+  same bundle, so this is not a lock — it stops the two-second devtools edit,
+  which is the thing people actually do.
+- **`LICENSE`** states all rights reserved. For a client-side game this is the
+  protection that genuinely applies, because the technical ones cannot.
+
+Two things to know:
+
+- **The dev server is not for anyone but you.** `npm run dev` serves the raw
+  source tree; `--host` publishes that to your whole network. Serve `dist/` to
+  anyone else.
+- **There is no backend.** No accounts, no server-side state, no API. The
+  attack surface is one static page, which is why the policy above can be as
+  tight as it is.
+
 ### The story layer
 
 `GameMode.ts` is structure — how many crimes, which boss, what time of day.
 `Story.ts` is what the city says while you do it, and it runs over the same
 subtitle and speech pipeline as the barks.
+
+A **prologue** runs before Book One on a new game: four scenes covering who
+Watanabe is and why a police captain started routing calls to a masked man, who
+Felicia Hardy is, and the night Peter worked out she was Black Cat — from a
+habit, not a clue, and then said nothing for six weeks. It is told as a
+flashback and is always spoken as Peter, whichever hero you picked, because
+Miles was not there for any of it. `Enter` skips it.
 
 Every chapter has an **opening exchange**, a **halfway line** partway through
 its street work, a **closing exchange**, and a written line for each boss

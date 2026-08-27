@@ -45,6 +45,7 @@ import {
   DISPATCH,
   FALL,
   PRESSURE,
+  PROLOGUE,
   RESCUE,
   SIEGE,
   THREADS,
@@ -158,6 +159,14 @@ export class Game {
   private pressureSaid = false;
   /** True once the partner has been called into the current fight. */
   private rescueCalled = false;
+  /** Skips the cold open. Bound while it is playing and at no other time. */
+  private readonly onSkipKey = (event: KeyboardEvent): void => {
+    if (event.key !== 'Enter' || !this.story.skippable) return;
+    if (this.story.skip()) {
+      this.hud.showSubtitle('SKIPPED', 'Straight to it, then.', '#ffb703');
+      this.enterChapter();
+    }
+  };
   /** Beats played per side thread, keyed by title. Survives a save. */
   private readonly threadProgress = new Map<string, number>();
   private crimesSinceThread = 0;
@@ -337,6 +346,7 @@ export class Game {
     this.input.attach(this.renderer.domElement);
     this.renderer.domElement.addEventListener('mousedown', this.onCanvasMouseDown);
     window.addEventListener('resize', this.onResize);
+    window.addEventListener('keydown', this.onSkipKey);
     document.addEventListener('visibilitychange', this.onVisibility);
     this.renderer.domElement.addEventListener('webglcontextlost', this.onContextLost);
     this.renderer.domElement.addEventListener('webglcontextrestored', this.onContextRestored);
@@ -592,6 +602,7 @@ export class Game {
     this.pause();
     this.renderer.domElement.removeEventListener('mousedown', this.onCanvasMouseDown);
     window.removeEventListener('resize', this.onResize);
+    window.removeEventListener('keydown', this.onSkipKey);
     document.removeEventListener('visibilitychange', this.onVisibility);
     this.renderer.domElement.removeEventListener('webglcontextlost', this.onContextLost);
     this.renderer.domElement.removeEventListener('webglcontextrestored', this.onContextRestored);
@@ -1530,6 +1541,26 @@ export class Game {
   }
 
   /**
+   * The cold open, before Book One.
+   *
+   * The campaign used to begin with Watanabe already on a police channel to
+   * you and Black Cat already being somebody you have history with, and never
+   * said how either became true. Four scenes, queued ahead of the first
+   * chapter card so they run before anything else, and skippable with Enter.
+   *
+   * Spoken as Peter throughout, whichever hero the player picked: it is a
+   * flashback to nights Miles was not present for.
+   */
+  private playPrologue(): void {
+    if (!CONFIG.story.enabled) return;
+    for (const scene of PROLOGUE) {
+      this.story.playCard(scene.label, `${scene.title}   ·   ENTER to skip`);
+      this.story.playAs('PETER', scene.script);
+    }
+    this.story.skippable = true;
+  }
+
+  /**
    * Rooftop backpacks: bobbing them, and picking one up.
    *
    * The reward is the scene, not the experience. Everything else in this game
@@ -1868,6 +1899,7 @@ export class Game {
       this.progression.skillPoints += 6;
     } else {
       this.dayNight.setTime(CONFIG.dayNight.startTime);
+      this.playPrologue();
       this.enterChapter();
     }
     this.markDirty();

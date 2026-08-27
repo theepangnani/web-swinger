@@ -698,15 +698,67 @@
         "seconds": 3.26
       },
       {
-        "path": "peter/story-97-it-is-a-very-good-roof.mp3",
+        "path": "peter/story-97-eight-years-of-this-you-would-think-the-.mp3",
+        "seconds": 4.49
+      },
+      {
+        "path": "peter/story-98-i-have-a-system.mp3",
         "seconds": 1.78
       },
       {
-        "path": "peter/story-98-then-keep-them-off-the-roofs.mp3",
+        "path": "peter/story-99-yuri-watanabe-she-did-not-ask-permission.mp3",
+        "seconds": 4.46
+      },
+      {
+        "path": "peter/story-100-you-could-have-been-suspended-for-that-c.mp3",
+        "seconds": 2.14
+      },
+      {
+        "path": "peter/story-101-felicia-hardy-we-were-friends-first-that.mp3",
+        "seconds": 4.42
+      },
+      {
+        "path": "peter/story-102-she-used-to-leave-a-window-open-for-me-o.mp3",
+        "seconds": 5.23
+      },
+      {
+        "path": "peter/story-103-the-cat-had-been-running-the-skyline-for.mp3",
+        "seconds": 5.88
+      },
+      {
+        "path": "peter/story-104-she-was-clearing-a-gap-she-had-no-busine.mp3",
+        "seconds": 7.03
+      },
+      {
+        "path": "peter/story-105-felicia-broke-that-ankle-when-she-was-ni.mp3",
+        "seconds": 4.63
+      },
+      {
+        "path": "peter/story-106-i-recognised-her-from-a-habit-i-did-not-.mp3",
+        "seconds": 4.25
+      },
+      {
+        "path": "peter/story-107-because-the-moment-i-did-one-of-them-sto.mp3",
+        "seconds": 5.76
+      },
+      {
+        "path": "peter/story-108-you-knew-i-knew.mp3",
         "seconds": 1.78
       },
       {
-        "path": "peter/story-99-i-know.mp3",
+        "path": "peter/story-109-then-that-is-where-we-start.mp3",
+        "seconds": 1.78
+      },
+      {
+        "path": "peter/story-110-it-is-a-very-good-roof.mp3",
+        "seconds": 1.78
+      },
+      {
+        "path": "peter/story-111-then-keep-them-off-the-roofs.mp3",
+        "seconds": 1.78
+      },
+      {
+        "path": "peter/story-112-i-know.mp3",
         "seconds": 1.78
       }
     ]
@@ -1716,6 +1768,14 @@
       {
         "path": "black-cat/story-19-oh-get-up-you-are-embarrassing-us-both.mp3",
         "seconds": 3.77
+      },
+      {
+        "path": "black-cat/story-20-you-took-six-weeks-by-the-way-i-counted.mp3",
+        "seconds": 3.84
+      },
+      {
+        "path": "black-cat/story-21-i-left-the-window-open-peter-i-am-not-su.mp3",
+        "seconds": 5.35
       }
     ]
   },
@@ -2202,59 +2262,75 @@
         "seconds": 2.52
       },
       {
-        "path": "yuri/story-34-radio-is-calm-that-is-either-good-news-o.mp3",
+        "path": "yuri/story-34-i-had-a-hostage-on-a-fortieth-floor-and-.mp3",
+        "seconds": 6.7
+      },
+      {
+        "path": "yuri/story-35-i-was-for-eleven-days-then-they-gave-me-.mp3",
+        "seconds": 7.1
+      },
+      {
+        "path": "yuri/story-36-i-do-not-think-you-are-the-answer-spider.mp3",
+        "seconds": 6.48
+      },
+      {
+        "path": "yuri/story-37-spider-man-watanabe-radio-is-already-bus.mp3",
+        "seconds": 6.41
+      },
+      {
+        "path": "yuri/story-38-radio-is-calm-that-is-either-good-news-o.mp3",
         "seconds": 5.14
       },
       {
-        "path": "yuri/story-35-spider-man-whatever-this-thing-is-my-off.mp3",
+        "path": "yuri/story-39-spider-man-whatever-this-thing-is-my-off.mp3",
         "seconds": 4.7
       },
       {
-        "path": "yuri/story-36-every-unit-in-the-borough-is-out-tonight.mp3",
+        "path": "yuri/story-40-every-unit-in-the-borough-is-out-tonight.mp3",
         "seconds": 4.97
       },
       {
-        "path": "yuri/story-37-assault-in-progress-two-blocks-north-of-.mp3",
+        "path": "yuri/story-41-assault-in-progress-two-blocks-north-of-.mp3",
         "seconds": 5.64
       },
       {
-        "path": "yuri/story-38-mugging-called-in-by-a-neighbour-nearest.mp3",
+        "path": "yuri/story-42-mugging-called-in-by-a-neighbour-nearest.mp3",
         "seconds": 7.2
       },
       {
-        "path": "yuri/story-39-they-are-leaning-on-a-shop-front-in-the-.mp3",
+        "path": "yuri/story-43-they-are-leaning-on-a-shop-front-in-the-.mp3",
         "seconds": 5.66
       },
       {
-        "path": "yuri/story-40-same-crew-third-call-tonight-somebody-is.mp3",
+        "path": "yuri/story-44-same-crew-third-call-tonight-somebody-is.mp3",
         "seconds": 5.74
       },
       {
-        "path": "yuri/story-41-crew-mid-job-and-armed-if-they-get-to-th.mp3",
+        "path": "yuri/story-45-crew-mid-job-and-armed-if-they-get-to-th.mp3",
         "seconds": 4.9
       },
       {
-        "path": "yuri/story-42-shots-called-in-no-injuries-yet-and-i-wo.mp3",
+        "path": "yuri/story-46-shots-called-in-no-injuries-yet-and-i-wo.mp3",
         "seconds": 5.57
       },
       {
-        "path": "yuri/story-43-four-of-them-on-a-roof-and-nothing-to-ro.mp3",
+        "path": "yuri/story-47-four-of-them-on-a-roof-and-nothing-to-ro.mp3",
         "seconds": 5.18
       },
       {
-        "path": "yuri/story-44-this-one-is-waiting-for-you-go-in-expect.mp3",
+        "path": "yuri/story-48-this-one-is-waiting-for-you-go-in-expect.mp3",
         "seconds": 4.44
       },
       {
-        "path": "yuri/story-45-they-are-gone-it-happens-next-one.mp3",
+        "path": "yuri/story-49-they-are-gone-it-happens-next-one.mp3",
         "seconds": 5.06
       },
       {
-        "path": "yuri/story-46-we-lost-that-one.mp3",
+        "path": "yuri/story-50-we-lost-that-one.mp3",
         "seconds": 2.04
       },
       {
-        "path": "yuri/story-47-too-slow-do-not-carry-it-there-is-anothe.mp3",
+        "path": "yuri/story-51-too-slow-do-not-carry-it-there-is-anothe.mp3",
         "seconds": 5.09
       }
     ]
@@ -2450,19 +2526,51 @@
         "seconds": 1.78
       },
       {
-        "path": "mj/story-47-you-are-on-a-roof-again-are-you-not.mp3",
+        "path": "mj/story-47-you-would-think-you-would-run-out-of-way.mp3",
+        "seconds": 2.83
+      },
+      {
+        "path": "mj/story-48-you-have-a-habit-there-is-a-difference-a.mp3",
+        "seconds": 4.37
+      },
+      {
+        "path": "mj/story-49-for-years-nobody-at-the-precinct-would-s.mp3",
+        "seconds": 5.98
+      },
+      {
+        "path": "mj/story-50-and-felicia.mp3",
+        "seconds": 1.78
+      },
+      {
+        "path": "mj/story-51-so-how-did-you-work-it-out.mp3",
+        "seconds": 2.04
+      },
+      {
+        "path": "mj/story-52-you-recognised-her-from-a-limp.mp3",
+        "seconds": 2.11
+      },
+      {
+        "path": "mj/story-53-why-not.mp3",
+        "seconds": 1.78
+      },
+      {
+        "path": "mj/story-54-nine-burglaries-this-week-and-nothing-fo.mp3",
+        "seconds": 4.37
+      },
+      {
+        "path": "mj/story-55-you-are-on-a-roof-again-are-you-not.mp3",
         "seconds": 2.16
       },
       {
-        "path": "mj/story-48-everything-i-file-about-osborn-comes-bac.mp3",
+        "path": "mj/story-56-everything-i-file-about-osborn-comes-bac.mp3",
         "seconds": 4.34
       },
       {
-        "path": "mj/story-49-miles-you-are-not-responsible-for-what-i.mp3",
+        "path": "mj/story-57-miles-you-are-not-responsible-for-what-i.mp3",
         "seconds": 4.13
       },
       {
-        "path": "mj/story-50-you-do-not-but-say-it-back-to-me-anyway.mp3",
+        "path": "mj/story-58-you-do-not-but-say-it-back-to-me-anyway.mp3",
         "seconds": 2.66
       }
     ]
