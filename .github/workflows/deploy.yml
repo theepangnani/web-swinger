@@ -1,0 +1,61 @@
+# Publishes the built game to GitHub Pages on every push to main.
+#
+# Only `dist/` goes up: the compiled bundle, the voice pack and the city data.
+# The source is in this repository because the repository is public, not
+# because the deployment puts it there — and the build no longer emits source
+# maps, so the published site does not carry the TypeScript with it.
+#
+# One thing GitHub Pages cannot do: it serves a fixed set of headers and
+# ignores `public/_headers`, so the CSP and X-Frame-Options written for
+# Cloudflare Pages and Netlify do not apply here. The frame check in
+# `src/main.ts` still does, which is precisely why it exists as code rather
+# than only as a header.
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  # So a broken deploy can be re-run without an empty commit.
+  workflow_dispatch:
+
+# Read the repo, write a Pages deployment, and prove identity to Pages.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never two deployments at once; a queued one supersedes an older queued one,
+# but an in-flight deploy is allowed to finish rather than being torn down.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      # The same gate CI uses. A deployment that skips the tests is a way of
+      # finding out in production what a two-minute job would have said.
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
