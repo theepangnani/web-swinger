@@ -37,13 +37,14 @@ const {
   StoryDirector,
   speakerColor,
   speakerName,
+  villainDisplayName,
 } = await bundle(
   [
     ['{ BOOKS, requiredHeroFor }', 'src/game/GameMode'],
     ['{ CRIME_KINDS }', 'src/enemies/ThugSystem'],
     ['{ VOICE_LINES }', 'src/audio/Voice'],
     [
-      '{ CHAPTER_BEATS, AMBIENT, DISPATCH, CRIME_LOST, TURN, PRESSURE, DEFEAT, FALL, RESCUE, PROLOGUE, BACKPACK_MEMORIES, BOOK_ENDINGS, SIEGE, THREADS, STORY_LINES, StoryDirector, speakerColor, speakerName }',
+      '{ CHAPTER_BEATS, AMBIENT, DISPATCH, CRIME_LOST, TURN, PRESSURE, DEFEAT, FALL, RESCUE, PROLOGUE, BACKPACK_MEMORIES, BOOK_ENDINGS, SIEGE, THREADS, STORY_LINES, StoryDirector, speakerColor, speakerName, villainDisplayName }',
       'src/game/Story',
     ],
   ],
@@ -550,6 +551,40 @@ console.log('[12] Miles-specific dialogue is gated');
   }
 
   if (!bad) ok('nothing addresses Miles on a night the player could be Peter');
+}
+
+// --- 12a. the man behind it ------------------------------------------------
+console.log('[12a] the Goblin has a name');
+{
+  // The story names Osborn nineteen times and Book Four is the reveal, but the
+  // game called him GREEN GOBLIN on every readout before and after, as though
+  // the scene had not happened.
+  let bad = 0;
+  if (villainDisplayName('GREEN GOBLIN', false) !== 'GREEN GOBLIN') {
+    fail('the mask is off before the player has seen it come off');
+    bad++;
+  }
+  if (villainDisplayName('GREEN GOBLIN', true) !== 'NORMAN OSBORN') {
+    fail('the reveal never lands on the readout');
+    bad++;
+  }
+  // Nobody else has a second identity to drop.
+  for (const villain of VILLAINS) {
+    if (villain === 'GREEN GOBLIN') continue;
+    if (villainDisplayName(villain, true) !== villain) {
+      fail(`${villain} was renamed by the Goblin's reveal`);
+      bad++;
+    }
+  }
+  // And the reveal has to actually be written somewhere before Book Five, or
+  // the readout changes for a player who was never told why.
+  const bookFour = BOOKS[3];
+  const namesHim = bookFour.chapters.some((c) => {
+    const beats = CHAPTER_BEATS[c.title] ?? {};
+    return scriptsOf(beats).some(([, sc]) => sc.some(([, text]) => /Osborn/.test(text)));
+  });
+  if (!namesHim) fail('Book Four never says the name the readout starts using');
+  else if (!bad) ok('GREEN GOBLIN before the reveal, NORMAN OSBORN after, and Book Four says why');
 }
 
 // --- 12b. the prologue ----------------------------------------------------

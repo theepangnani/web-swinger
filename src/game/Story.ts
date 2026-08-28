@@ -1501,3 +1501,21 @@ const DISPLAY: Readonly<Record<string, string>> = {
 export function speakerName(speaker: string): string {
   return DISPLAY[speaker] ?? speaker;
 }
+
+/**
+ * What the game calls a villain out loud, given how much the player knows.
+ *
+ * The story names Norman Osborn nineteen times and Book Four is built around
+ * the reveal — "Osborn." / "*Mister* Osborn. I built half of what you are
+ * standing on." — but the game itself never followed through: the boss bar and
+ * every subtitle went on saying GREEN GOBLIN, before and after, as though the
+ * scene had not happened.
+ *
+ * So it changes. Before the reveal he is the thing in the sky; afterwards the
+ * game calls him by his name, because the player knows it. Nothing else in the
+ * roster has a second identity to drop, which is why this is one villain and
+ * not a table.
+ */
+export function villainDisplayName(kind: VillainKind, unmasked: boolean): string {
+  return kind === 'GREEN GOBLIN' && unmasked ? 'NORMAN OSBORN' : kind;
+}

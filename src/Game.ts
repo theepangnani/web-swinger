@@ -54,6 +54,7 @@ import {
   PRESSURE,
   PROLOGUE,
   RESCUE,
+  villainDisplayName,
   SIEGE,
   THREADS,
   TURN,
@@ -380,7 +381,7 @@ export class Game {
       // against the rendered pack, the estimate alone cut 9% of lines off, the
       // worst by two seconds.
       const seconds = line.seconds + CONFIG.story.lineTail;
-      this.hud.showSubtitle(speakerName(line.speaker), line.text, speakerColor(line.speaker), seconds);
+      this.hud.showSubtitle(this.speakerLabel(line.speaker), line.text, speakerColor(line.speaker), seconds);
       this.voice.line(line.speaker, line.text, line.clip, seconds, (actual) => {
         const held = actual + CONFIG.story.lineTail;
         this.story.extend(held);
@@ -446,7 +447,7 @@ export class Game {
     // reads as the game cheating unless it is stated plainly.
     this.enemies.onRegenChanged = (villain): void => {
       if (!villain.regenerating) return;
-      this.hud.showSubtitle('RECOVERING', `${villain.name} is healing — get back in.`, '#52fa7c');
+      this.hud.showSubtitle('RECOVERING', `${this.villainName(villain)} is healing — get back in.`, '#52fa7c');
       this.sfx.play('alert', 0.4);
     };
     // Left alone long enough, they finish what they came for and are paid for
@@ -456,7 +457,7 @@ export class Game {
       this.story.play(OBJECTIVE_DONE[villain.kind]);
       this.hud.showSubtitle(
         'TOO LATE',
-        `${villain.name} finished. Health back, and hitting harder.`,
+        `${this.villainName(villain)} finished. Health back, and hitting harder.`,
         '#e63946',
       );
       this.sfx.play('alert', 0.8);
@@ -464,7 +465,7 @@ export class Game {
       this.markDirty();
     };
     this.enemies.onInterrupted = (villain): void => {
-      this.hud.showSubtitle('STAGGERED', `${villain.name} is open.`, '#ffb703');
+      this.hud.showSubtitle('STAGGERED', `${this.villainName(villain)} is open.`, '#ffb703');
       this.sfx.play('heavy', 0.6);
       this.chase.addShake(0.4);
     };
@@ -1356,7 +1357,7 @@ export class Game {
       villain.kind === 'SANDMAN'
         ? ' He is the size of the block — hit the head, nothing lower holds together.'
         : '';
-    this.hud.showSubtitle('ALERT', `${villain.name} has surfaced in the city.${note}`, '#9440bc');
+    this.hud.showSubtitle('ALERT', `${this.villainName(villain)} has surfaced in the city.${note}`, '#9440bc');
     // A chapter that wrote this villain an entrance gets the entrance. Only
     // fall back to a generic taunt when it did not — which is every villain
     // in free roam and in the post-game siege.
@@ -1416,6 +1417,36 @@ export class Game {
     const calls = DISPATCH[crime.kind];
     this.story.play(calls[this.dispatchCursor % calls.length], 'AMBIENT');
     this.dispatchCursor++;
+  }
+
+  /**
+   * Whether the player has seen the mask come off.
+   *
+   * Book Four is the reveal, so anything from that book onward knows — and so
+   * does anyone who has put him down at least once, which is what covers free
+   * roam and the post-game, where there is no book to read it from. Before
+   * either, he is still just the thing in the sky, and the readout should not
+   * be the thing that spoils it.
+   */
+  private get goblinUnmasked(): boolean {
+    return this.campaign.bookIndex >= 3 || (this.villainDefeats.get('GREEN GOBLIN') ?? 0) > 0;
+  }
+
+  /** What to call a villain on screen, given what the player knows. */
+  private villainName(villain: Villain): string {
+    return villainDisplayName(villain.kind, this.goblinUnmasked);
+  }
+
+  /**
+   * The name above a line of dialogue.
+   *
+   * Same rule as the boss readout, and it has to be the same rule: announcing
+   * NORMAN OSBORN over the health bar while his own lines are still labelled
+   * GREEN GOBLIN reads as two different characters on the same rooftop.
+   */
+  private speakerLabel(speaker: string): string {
+    if (speaker === 'GREEN GOBLIN') return villainDisplayName(speaker, this.goblinUnmasked);
+    return speakerName(speaker);
   }
 
   /**
@@ -2158,7 +2189,7 @@ export class Game {
 
     for (const villain of this.enemies.villains) {
       // Dormant villains aren't in the world yet — don't point at them.
-      if (villain.alive && !villain.dormant) push(villain.pos, villain.name, 'villain');
+      if (villain.alive && !villain.dormant) push(villain.pos, this.villainName(villain), 'villain');
     }
 
     this.hud.setMarkers(markers);
@@ -2407,7 +2438,7 @@ export class Game {
     for (const v of this.enemies.villains) {
       if (!v.alive || v.dormant) continue;
       this.villainReadouts.push({
-        name: v.name,
+        name: this.villainName(v),
         health: v.hp / v.maxHp,
         distance: v.pos.distanceTo(player.pos),
         regenerating: v.regenerating,

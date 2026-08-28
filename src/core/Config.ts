@@ -577,7 +577,16 @@ export const CONFIG = {
       climbRate: 4.5,
       /** Radius of the orbit he flies around the player. */
       orbitRadius: 36,
-      speed: 20,
+      /**
+       * 19, down from 20.
+       *
+       * He is the only villain who never lands and never stops moving, so the
+       * orbit speed is the whole difficulty of catching him — and unlike a
+       * ground boss there is no moment where he is stationary and you simply
+       * arrive. Five percent is a small number that changes whether a swing
+       * arc converges on him or trails a few metres behind it forever.
+       */
+      speed: 19,
       engageRange: 120,
       bombCooldown: 2.4,
       bombDamage: 26,
