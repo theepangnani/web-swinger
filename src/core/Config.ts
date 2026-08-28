@@ -340,6 +340,20 @@ export const CONFIG = {
     objectives: {
       /** Seconds of being left alone to finish one. */
       seconds: 55,
+      /**
+       * Closing speed, m/s, that counts as being chased.
+       *
+       * Both the recovery and the objective rules were written as "the player
+       * is far away", which is only half of what they meant. Distance is
+       * symmetric and the intent was not: a player who walks off deserves the
+       * consequence, and a player sprinting after a villain who is fleeing
+       * deserves the opposite. Against the Goblin — who never lands, never
+       * stops and outruns a swing — the two were indistinguishable, so
+       * chasing him healed him. Being closed on now suspends both.
+       */
+      chaseSpeed: 2,
+      /** Seconds a chase keeps counting after the player stops gaining. */
+      chaseMemory: 4,
       /** Metres: closer than this and the player is considered to be stopping it. */
       contestRadius: 70,
       /** Fraction of maximum health they take back on finishing. */

@@ -158,6 +158,17 @@ export interface Villain {
   empowered: number;
   /** Seconds of stagger left after being interrupted mid-recovery. */
   stunTimer: number;
+  /** Distance to the player last frame, for working out who is chasing whom. */
+  lastDistance: number;
+  /**
+   * Seconds left on "the player is chasing me".
+   *
+   * Refreshed whenever they close meaningfully and decayed otherwise, so a
+   * pursuit across the skyline reads as one continuous chase rather than as a
+   * flicker of frames — a swing arc alternates between gaining and losing
+   * ground several times a second.
+   */
+  chasedFor: number;
 }
 
 const _v1 = new THREE.Vector3();
@@ -307,6 +318,26 @@ export class EnemySystem implements TargetProvider {
   }
 
   /**
+   * Whether the player is gaining on this villain.
+   *
+   * The distinction the healing rules needed and did not have. "Far away" is
+   * symmetric; "walked off" and "cannot keep up" are not, and the Goblin made
+   * the difference painfully clear — he never lands, never stops, and outruns
+   * a swing, so chasing him put exactly the same distance on the clock as
+   * abandoning him and he healed through the entire pursuit.
+   */
+  private trackChase(dt: number, v: Villain, playerPos: THREE.Vector3): void {
+    const cfg = CONFIG.enemies.objectives;
+    const distance = v.pos.distanceTo(playerPos);
+    const closing = (v.lastDistance - distance) / Math.max(dt, 1e-4);
+    v.lastDistance = distance;
+    // Refreshed rather than accumulated: one good swing toward them buys the
+    // full window, and a chase that pauses for a moment does not reset.
+    if (Number.isFinite(closing) && closing > cfg.chaseSpeed) v.chasedFor = cfg.chaseMemory;
+    else v.chasedFor = Math.max(0, v.chasedFor - dt);
+  }
+
+  /**
    * What they came here to do, and how close they are to having done it.
    *
    * Contested by presence rather than by damage: standing in front of Sandman
@@ -327,6 +358,10 @@ export class EnemySystem implements TargetProvider {
       return;
     }
     if (!v.met) return;
+    // Being chased is not being ignored. Without this, a villain who runs is
+    // rewarded for it — and the one who runs best is the one this was most
+    // punishing against.
+    if (v.chasedFor > 0) return;
     // Cocooned by a gadget and left there: they are not working at anything.
     if (v.webbed > 0 || v.stunTimer > 0) return;
     if (v.objectivesDone >= cfg.maxPerFight) return;
@@ -357,7 +392,10 @@ export class EnemySystem implements TargetProvider {
     // in — and firing on those punished players who had not gone anywhere.
     // Three hundred metres is what running away to heal actually looks like.
     const away = v.pos.distanceToSquared(playerPos) > cfg.range * cfg.range;
-    const should = away && v.sinceHit > cfg.idleSeconds && v.hp < v.maxHp;
+    // Not while being chased. Distance alone said the same thing about a
+    // player who left and a player who is thirty metres behind and gaining,
+    // which made the fliers close to unkillable: they healed the whole way.
+    const should = away && v.chasedFor <= 0 && v.sinceHit > cfg.idleSeconds && v.hp < v.maxHp;
     if (should) {
       v.hp = Math.min(v.maxHp, v.hp + v.maxHp * cfg.fractionPerSecond * dt);
       // Healing back over the halfway mark re-arms the mid-fight line, for the
@@ -547,6 +585,8 @@ export class EnemySystem implements TargetProvider {
     fallen.objectivesDone = 0;
     fallen.empowered = 1;
     fallen.met = false;
+    fallen.lastDistance = Infinity;
+    fallen.chasedFor = 0;
     fallen.stunTimer = 0;
     return fallen;
   }
@@ -586,6 +626,8 @@ export class EnemySystem implements TargetProvider {
     villain.objectivesDone = 0;
     villain.empowered = 1;
     villain.met = false;
+    villain.lastDistance = Infinity;
+    villain.chasedFor = 0;
     villain.stunTimer = 0;
     villain.damageScale = 1;
     villain.chargeTimer = 0;
@@ -679,6 +721,7 @@ export class EnemySystem implements TargetProvider {
       v.hitFlash = Math.max(0, v.hitFlash - dt * 4);
       v.sinceHit += dt;
       v.stunTimer = Math.max(0, v.stunTimer - dt);
+      this.trackChase(dt, v, player.pos);
       this.updateRegen(dt, v, player.pos);
       this.updateObjective(dt, v, player.pos);
       v.poiseCooldown = Math.max(0, v.poiseCooldown - dt);
@@ -1043,7 +1086,11 @@ export class EnemySystem implements TargetProvider {
     // Orbit: circle the player at altitude, keeping the glider level-ish.
     v.bodyPivot.rotation.z = damp(v.bodyPivot.rotation.z, Math.sin(t * 0.8) * 0.25, 4, dt);
 
-    const engaged = distance < cfg.engageRange;
+    // Sticky, via the arena's own hysteresis: it engages at 120 m and only
+    // releases at 190. Testing the raw distance meant falling a little behind
+    // flipped him to "fly home", and home is wherever he spawned — so a chase
+    // turned into him leaving, at a speed a player on webs cannot match.
+    const engaged = v.arenaActive || distance < cfg.engageRange;
     const centre = engaged ? player.pos : v.home.roof;
     const orbit = t * 0.42;
     const targetX = centre.x + Math.cos(orbit) * cfg.orbitRadius;
@@ -2307,6 +2354,8 @@ export class EnemySystem implements TargetProvider {
       dormant: true,
       turned: false,
       regenerating: false,
+      lastDistance: Infinity,
+      chasedFor: 0,
       objective: 0,
       objectivesDone: 0,
       empowered: 1,

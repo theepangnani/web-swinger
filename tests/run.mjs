@@ -24,6 +24,7 @@ const SUITES = [
   ['numeric.mjs', 'day/night clock keeps running, and never goes pitch dark'],
   ['joints.mjs', 'villain limbs sit exactly where they were authored'],
   ['flight.mjs', 'the fliers stay out of the buildings they cross'],
+  ['chase.mjs', 'a chased villain cannot heal, and cannot simply leave'],
 ];
 
 const filters = process.argv.slice(2);
