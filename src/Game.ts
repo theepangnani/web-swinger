@@ -871,6 +871,11 @@ export class Game {
 
   /** Escape drops pointer lock; surface that as a pause prompt. */
   private syncPointerLockOverlay(): void {
+    // Pointer lock is a mouse concept. A touchscreen never grants it, so this
+    // overlay would sit there permanently telling a phone to click something —
+    // which is exactly what it did, and why the game could be loaded on a
+    // phone but never played.
+    if (this.input.touch.active) return;
     const locked = this.input.pointerLocked;
     if (locked === this.wasPointerLocked) return;
     this.wasPointerLocked = locked;

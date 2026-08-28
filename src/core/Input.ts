@@ -1,5 +1,6 @@
 import { CONFIG } from './Config';
 import { clamp, deadzone } from './MathUtils';
+import { TouchControls } from './Touch';
 import { ALWAYS_BOUND, type BindableAction, type Settings } from '../ui/Settings';
 
 /**
@@ -50,6 +51,15 @@ export class Input {
   skillMenuPressed = false;
 
   pointerLocked = false;
+  /**
+   * On-screen controls, on the devices that need them.
+   *
+   * Created here rather than by the Game so that every consumer of `Input`
+   * gets touch for free — the alternative is each caller remembering to merge
+   * a second source, which is the sort of thing that gets remembered for
+   * movement and forgotten for the dodge button.
+   */
+  readonly touch = new TouchControls(document.body);
   gamepadConnected = false;
 
   private readonly keys = new Set<string>();
@@ -181,9 +191,10 @@ export class Input {
   poll(): void {
     const kb = this.pollKeyboard();
     const pad = this.pollGamepad();
+    const touch = this.touch.poll();
 
-    let mx = kb.moveX + pad.moveX;
-    let my = kb.moveY + pad.moveY;
+    let mx = kb.moveX + pad.moveX + touch.moveX;
+    let my = kb.moveY + pad.moveY + touch.moveY;
     const mag = Math.hypot(mx, my);
     if (mag > 1) {
       mx /= mag;
@@ -192,38 +203,41 @@ export class Input {
     this.moveX = mx;
     this.moveY = my;
 
-    this.lookX = this.rawLookX + pad.lookX;
-    this.lookY = this.rawLookY + pad.lookY;
-    this.reelAxis = clamp(kb.reel + pad.reel, -1, 1);
+    // Touch look is a pixel delta like the mouse, so it belongs with the raw
+    // value rather than the gamepad's per-second stick rate.
+    this.lookX = this.rawLookX + touch.lookX + pad.lookX;
+    this.lookY = this.rawLookY + touch.lookY + pad.lookY;
+    this.reelAxis = clamp(kb.reel + pad.reel + touch.reel, -1, 1);
 
-    const webHeldNow = kb.web || pad.web;
+    const webHeldNow = kb.web || pad.web || touch.web;
     this.webPressed = webHeldNow && !this.webHeld;
     this.webReleased = !webHeldNow && this.webHeld;
     this.webHeld = webHeldNow;
 
-    this.strikePressed = this.mouseDownEdge || pad.strike;
-    this.abilityPressed = kb.ability || pad.ability;
-    this.swapPressed = kb.swap || pad.swap;
+    this.strikePressed = this.mouseDownEdge || pad.strike || touch.strike;
+    this.abilityPressed = kb.ability || pad.ability || touch.ability;
+    this.swapPressed = kb.swap || pad.swap || touch.swap;
     this.jumpPressed = kb.jump || pad.jump;
     this.climbHeld = kb.climb || pad.climb;
     this.pausePressed = this.keyEdges.has('Escape') || pad.pause;
     this.mutePressed = kb.mute;
-    this.settingsPressed = this.keyEdges.has('KeyO');
+    this.settingsPressed = this.keyEdges.has('KeyO') || touch.settings;
     this.legendPressed = this.keyEdges.has('KeyL');
 
-    this.sprintHeld = kb.sprint || pad.sprint;
-    this.glideHeld = kb.glide || pad.glide;
-    this.dodgePressed = this.rightMouseEdge || kb.dodge || pad.dodge;
-    this.zipPressed = this.middleMouseEdge || kb.zip || pad.zip;
-    this.gadgetPressed = kb.gadget || pad.gadget;
+    this.sprintHeld = kb.sprint || pad.sprint || touch.sprint;
+    this.glideHeld = kb.glide || pad.glide || touch.glide;
+    this.dodgePressed = this.rightMouseEdge || kb.dodge || pad.dodge || touch.dodge;
+    this.zipPressed = this.middleMouseEdge || kb.zip || pad.zip || touch.zip;
+    this.gadgetPressed = kb.gadget || pad.gadget || touch.gadget;
     this.gadgetCycle = kb.gadgetCycle !== 0 ? kb.gadgetCycle : pad.gadgetCycle;
-    this.healPressed = kb.heal;
-    this.finisherPressed = kb.finisher;
-    this.skillMenuPressed = kb.skillMenu;
+    this.healPressed = kb.heal || touch.heal;
+    this.finisherPressed = kb.finisher || touch.finisher;
+    this.skillMenuPressed = kb.skillMenu || touch.skillMenu;
   }
 
   /** Clears per-frame edges and accumulated deltas. */
   endFrame(): void {
+    this.touch.endFrame();
     this.keyEdges.clear();
     this.mouseDownEdge = false;
     this.rightMouseEdge = false;

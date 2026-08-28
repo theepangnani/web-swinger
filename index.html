@@ -387,7 +387,100 @@
             max-width: 80vw; overflow: auto; text-align: left; color: #ff8b8b;
             font-size: 12px; background: #14141c; padding: 12px; border-radius: 8px;
         }
-    </style>
+  
+    /* ---------- on-screen controls (phones and tablets) ----------
+       Built by src/core/Touch.ts and only ever inserted on a device with a
+       coarse primary pointer, so none of this exists on a desktop.
+
+       Everything is anchored to the bottom corners and sized in vmin rather
+       than pixels: a thumb is the same size on a 5" phone and a 13" tablet,
+       and a control that scales with the viewport stops being reachable on
+       one of them. `touch-action: none` throughout, or the browser treats a
+       swing as a scroll and a look as a pinch. */
+    .touch-controls {
+      position: fixed; inset: 0; z-index: 40;
+      touch-action: none; -webkit-user-select: none; user-select: none;
+      /* The layer itself is inert; only its children take input, so a tap on
+         empty space still reaches the camera-drag handler underneath. */
+      pointer-events: none;
+    }
+    .touch-controls > * { pointer-events: auto; }
+
+    /* The whole right-hand side is camera drag. No visible affordance: it is
+       discovered in about one second and a permanent grey rectangle over half
+       the screen is a worse trade than that. */
+    .tc-look {
+      position: absolute; right: 0; top: 0; bottom: 0; left: 45%;
+    }
+
+    .tc-stick {
+      position: absolute; left: max(18px, env(safe-area-inset-left));
+      bottom: max(18px, env(safe-area-inset-bottom));
+      width: 34vmin; height: 34vmin; max-width: 190px; max-height: 190px;
+      border-radius: 50%;
+      border: 1px solid rgba(120, 200, 255, 0.28);
+      background: radial-gradient(circle, rgba(10,20,32,0.42), rgba(10,20,32,0.14));
+      display: grid; place-items: center;
+    }
+    .tc-stick i {
+      width: 38%; height: 38%; border-radius: 50%;
+      background: rgba(150, 215, 255, 0.42);
+      border: 1px solid rgba(190, 235, 255, 0.55);
+      transition: transform 60ms linear;
+    }
+
+    .tc-pad {
+      position: absolute; right: max(14px, env(safe-area-inset-right));
+      bottom: max(14px, env(safe-area-inset-bottom));
+      display: grid; gap: 8px;
+      grid-template-columns: repeat(3, auto);
+      justify-items: end; align-items: end;
+    }
+    .tc-btn {
+      -webkit-appearance: none; appearance: none;
+      font: 600 9px/1 'Segoe UI', system-ui, sans-serif;
+      letter-spacing: .12em;
+      color: #dff1ff;
+      background: rgba(12, 24, 38, 0.55);
+      border: 1px solid rgba(120, 200, 255, 0.34);
+      border-radius: 50%;
+      width: 15vmin; height: 15vmin; max-width: 86px; max-height: 86px;
+      touch-action: none;
+    }
+    /* Pressed state matters more here than on a desktop: there is no cursor
+       and no hover, so the button itself has to be the only feedback. */
+    .tc-btn:active { background: rgba(60, 150, 220, 0.6); transform: scale(0.94); }
+
+    /* Swing is the verb the game is built on and the only one that is held,
+       so it is the biggest and sits under the resting thumb. */
+    .tc-web {
+      grid-column: 3; grid-row: 1 / span 2;
+      width: 24vmin; height: 24vmin; max-width: 132px; max-height: 132px;
+      background: rgba(20, 60, 96, 0.6);
+      border-color: rgba(150, 220, 255, 0.5);
+    }
+    .tc-hit { grid-column: 2; grid-row: 2; }
+    .tc-dodge { grid-column: 1; grid-row: 2; }
+    .tc-small { width: 12vmin; height: 12vmin; max-width: 66px; max-height: 66px; font-size: 8px; }
+    .tc-tiny {
+      width: 10vmin; height: 10vmin; max-width: 54px; max-height: 54px;
+      font-size: 7px; opacity: .8;
+    }
+
+    /* Landscape is where this is actually played, and it is short. Pull the
+       secondary row in so the pad never eats the middle of the screen. */
+    @media (orientation: landscape) and (max-height: 480px) {
+      .tc-stick { width: 30vmin; height: 30vmin; }
+      .tc-btn { width: 13vmin; height: 13vmin; }
+      .tc-web { width: 20vmin; height: 20vmin; }
+    }
+
+    /* The desktop legend is noise on a phone, and the HUD panels are already
+       tight there. */
+    @media (pointer: coarse) {
+      #desktop-controls-legend { display: none !important; }
+    }
+  </style>
 </head>
 <body>
 

@@ -84,6 +84,32 @@ comes back. `rematch.mjs` and the chapter-credit block in `campaign.mjs` were
 both confirmed by restoring the old behaviour and watching them fail — a
 regression test that has never failed has not been shown to work.
 
+## Playing on a phone or tablet
+
+The game detects a coarse primary pointer and puts on-screen controls up: a
+thumb-stick bottom-left, the whole right-hand side as camera drag, and a pad of
+buttons bottom-right with SWING largest because it is the only one held and the
+verb the game is built on.
+
+Two verbs are folded into gestures rather than given buttons, because twenty
+verbs do not fit under two thumbs:
+
+- **Sprint and glide** are the stick pushed to its edge. On the keyboard both
+  are Shift and which you get already depends on whether your feet are on
+  something, so one gesture covering both is not a compromise.
+- **Reeling the line in and out** is a vertical drag on the SWING button — the
+  same thumb that is already holding it.
+
+Before this the game was not merely hard on a phone, it was unplayable and did
+not say so: the pause overlay is driven by pointer lock, which a touchscreen
+never grants, so a phone sat forever on "Paused — pointer released. Click
+anywhere to dive back in." while tapping did nothing.
+
+`tests/touch.mjs` runs the real control layer against a stubbed DOM. The cases
+worth having are the ones that only show up with a thumb on glass: three
+fingers at once (move while looking while swinging), holds versus taps, and
+which way is forward — screen Y grows downward and the game's does not.
+
 ## Controls
 
 | Action | Keyboard / Mouse | Gamepad |

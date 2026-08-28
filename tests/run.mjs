@@ -25,6 +25,7 @@ const SUITES = [
   ['joints.mjs', 'villain limbs sit exactly where they were authored'],
   ['flight.mjs', 'the fliers stay out of the buildings they cross'],
   ['chase.mjs', 'a chased villain cannot heal, and cannot simply leave'],
+  ['touch.mjs', 'on-screen controls: multi-touch, holds vs taps, which way is forward'],
 ];
 
 const filters = process.argv.slice(2);
